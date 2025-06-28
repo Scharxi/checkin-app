@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  email     String?    @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  checkIns  CheckIn[]
+
+  @@map("users")
+}
+
+model Location {
+  id          String     @id @default(cuid())
+  name        String
+  description String
+  icon        String     // Icon name from lucide-react
+  color       String     // Tailwind color class
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  checkIns    CheckIn[]
+
+  @@map("locations")
+}
+
+model CheckIn {
+  id         String    @id @default(cuid())
+  userId     String
+  locationId String
+  checkedInAt DateTime @default(now())
+  checkedOutAt DateTime?
+  isActive   Boolean   @default(true)
+  
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location   Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@map("checkins")
+  @@index([userId])
+  @@index([locationId])
+  @@index([isActive])
+} 
