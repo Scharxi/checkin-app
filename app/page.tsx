@@ -349,7 +349,7 @@ export default function CheckInApp() {
             return (
               <Card
                 key={location.id}
-                className={`cursor-pointer transition-all duration-500 transform hover:scale-105 hover:rotate-1 backdrop-blur-lg bg-white/80 border-white/20 shadow-xl hover:shadow-2xl ${
+                className={`cursor-pointer transition-all duration-300 transform hover:scale-105 backdrop-blur-lg bg-white/80 border-white/20 shadow-xl hover:shadow-2xl ${
                   isCheckedIn 
                     ? "ring-4 ring-green-400 shadow-2xl bg-gradient-to-br from-green-50/90 to-blue-50/90 scale-105" 
                     : "hover:shadow-2xl"
