@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { QueryProvider } from '@/components/providers/query-provider'
+import { WebSocketProvider } from '@/components/providers/websocket-provider'
 import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
@@ -18,8 +19,10 @@ export default function RootLayout({
     <html lang="de">
       <body>
         <QueryProvider>
-          {children}
-          <Toaster />
+          <WebSocketProvider>
+            {children}
+            <Toaster />
+          </WebSocketProvider>
         </QueryProvider>
       </body>
     </html>
