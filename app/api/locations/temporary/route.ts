@@ -130,15 +130,19 @@ export const autoDeleteEmptyTemporaryLocations = async () => {
     })
 
     if (candidatesForDeletion.length > 0) {
-      // Delete empty temporary locations
-      await prisma.location.updateMany({
+      // Actually delete empty temporary locations from database
+      // Double-check that these are temporary locations with no active check-ins
+      await prisma.location.deleteMany({
         where: {
           id: {
             in: candidatesForDeletion.map(loc => loc.id)
+          },
+          isTemporary: true, // Extra safety: only delete temporary locations
+          checkIns: {
+            none: {
+              isActive: true // Extra safety: ensure no active check-ins
+            }
           }
-        },
-        data: {
-          isActive: false
         }
       })
 
@@ -153,7 +157,7 @@ export const autoDeleteEmptyTemporaryLocations = async () => {
         await broadcastLocationDeleted(locationData)
       }
 
-      console.log(`Auto-deleted ${candidatesForDeletion.length} empty temporary locations`)
+      console.log(`Permanently deleted ${candidatesForDeletion.length} empty temporary locations from database`)
     }
   } catch (error) {
     console.error('Error auto-deleting empty temporary locations:', error)
