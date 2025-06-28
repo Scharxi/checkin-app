@@ -14,6 +14,7 @@ model User {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   checkIns  CheckIn[]
+  createdLocations Location[] // New relation to track created temporary locations
 
   @@map("users")
 }
@@ -25,9 +26,14 @@ model Location {
   icon        String     // Icon name from lucide-react
   color       String     // Tailwind color class
   isActive    Boolean    @default(true)
+  isTemporary Boolean    @default(false) // New field for temporary locations
+  createdBy   String?    // New field to track who created the temporary location
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   checkIns    CheckIn[]
+
+  // Add relation to User for temporary locations
+  creator     User?      @relation(fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@map("locations")
 }
