@@ -2,7 +2,6 @@
 
 import { createContext, useContext, ReactNode } from 'react'
 import { useWebsockets } from '@/hooks/use-websockets'
-import { useSSE } from '@/hooks/use-sse'
 
 interface WebSocketContextType {
   isConnected: boolean
@@ -20,8 +19,6 @@ interface WebSocketProviderProps {
 
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const websocketData = useWebsockets()
-  // Add SSE hook for location updates
-  useSSE()
 
   return (
     <WebSocketContext.Provider value={websocketData}>

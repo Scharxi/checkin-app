@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { broadcastUpdate } from '@/app/api/sse/route'
 import { broadcastLocationCreated, broadcastLocationDeleted } from '@/lib/websocket-broadcast'
 import { z } from 'zod'
 
@@ -68,9 +67,6 @@ export const POST = async (request: NextRequest) => {
       })),
     }
 
-    // Broadcast location creation update via SSE
-    await broadcastUpdate('location_created', locationWithUsers)
-    
     // Broadcast location creation update via WebSocket
     await broadcastLocationCreated({
       ...locationWithUsers,
@@ -152,9 +148,6 @@ export const autoDeleteEmptyTemporaryLocations = async () => {
           id: location.id,
           name: location.name
         }
-        
-        // Broadcast via SSE
-        await broadcastUpdate('location_deleted', locationData)
         
         // Broadcast via WebSocket
         await broadcastLocationDeleted(locationData)
