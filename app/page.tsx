@@ -11,6 +11,7 @@ import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName
 import { ConnectionStatus } from "@/components/ui/connection-status"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { CreateTemporaryLocationDialog } from "@/components/create-temporary-location-dialog"
 
 // Icon mapping
 const iconMap = {
@@ -20,6 +21,7 @@ const iconMap = {
   Book,
   ShoppingBag,
   Users,
+  MapPin,
 }
 
 
@@ -573,8 +575,15 @@ export default function CheckInApp() {
               >
                 <CardContent className={isMobile ? "p-4" : "p-3"}>
                   <div className={`flex items-start justify-between ${isMobile ? 'mb-3' : 'mb-2'}`}>
-                    <div className={`${isMobile ? 'p-3' : 'p-2'} rounded-lg bg-gradient-to-br ${getGradientClass(location.color)} text-white shadow-lg transform transition-transform duration-300 ${isMobile ? 'active:scale-95' : 'hover:scale-110'}`}>
-                      <Icon className={isMobile ? "w-6 h-6" : "w-4 h-4"} />
+                    <div className="flex items-center gap-2">
+                      <div className={`${isMobile ? 'p-3' : 'p-2'} rounded-lg bg-gradient-to-br ${getGradientClass(location.color)} text-white shadow-lg transform transition-transform duration-300 ${isMobile ? 'active:scale-95' : 'hover:scale-110'}`}>
+                        <Icon className={isMobile ? "w-6 h-6" : "w-4 h-4"} />
+                      </div>
+                      {location.isTemporary && (
+                        <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-200 px-1.5 py-0.5">
+                          Temporär • 5min Gnadenfrist
+                        </Badge>
+                      )}
                     </div>
                     <div className={`flex items-center gap-1 bg-white/70 backdrop-blur-sm rounded-full ${isMobile ? 'px-3 py-1' : 'px-2 py-0.5'} shadow-md`}>
                       <Users className={isMobile ? "w-4 h-4 text-slate-600" : "w-3 h-3 text-slate-600"} />
@@ -611,6 +620,54 @@ export default function CheckInApp() {
               </Card>
             )
           })}
+          
+          {/* Create Temporary Location Card */}
+          <CreateTemporaryLocationDialog 
+            user={user}
+            trigger={
+              <Card className={`cursor-pointer transition-all duration-300 ${isMobile ? 'transform active:scale-95' : 'transform hover:scale-105'} backdrop-blur-lg bg-white/80 border-white/20 shadow-xl ${isMobile ? 'active:shadow-2xl' : 'hover:shadow-2xl'} group`}>
+                <CardContent className={isMobile ? "p-4" : "p-3"}>
+                  <div className={`flex items-start justify-between ${isMobile ? 'mb-3' : 'mb-2'}`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`${isMobile ? 'p-3' : 'p-2'} rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-lg transform transition-transform duration-300 ${isMobile ? 'group-active:scale-95' : 'group-hover:scale-110'}`}>
+                        <MapPin className={isMobile ? "w-6 h-6" : "w-4 h-4"} />
+                      </div>
+                      <Badge variant="outline" className="text-xs bg-slate-100 text-slate-600 border-slate-200 px-1.5 py-0.5">
+                        Neu erstellen
+                      </Badge>
+                    </div>
+                    <div className={`flex items-center gap-1 bg-white/70 backdrop-blur-sm rounded-full ${isMobile ? 'px-3 py-1' : 'px-2 py-0.5'} shadow-md`}>
+                      <MapPin className={isMobile ? "w-4 h-4 text-slate-400" : "w-3 h-3 text-slate-400"} />
+                      <span className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium text-slate-500`}>+</span>
+                    </div>
+                  </div>
+
+                  <h3 className={`font-bold ${isMobile ? 'text-lg' : 'text-base'} text-slate-800 ${isMobile ? 'mb-2' : 'mb-1'} leading-tight`}>
+                    Temporäre Karte erstellen
+                  </h3>
+                  <p className={`text-slate-600 ${isMobile ? 'text-sm mb-3' : 'text-xs mb-2'} leading-snug line-clamp-2`}>
+                    Neue temporäre Check-in-Karte für spontane Meetings oder Events
+                  </p>
+
+                  {/* Placeholder "users" section */}
+                  <div className={`${isMobile ? 'mt-3 pt-3' : 'mt-2 pt-2'} border-t border-white/30`}>
+                    <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-slate-400 ${isMobile ? 'mb-2' : 'mb-1'} font-medium`}>Klicken zum Erstellen</p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-1">
+                        <div className="w-6 h-6 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full border-2 border-white flex items-center justify-center">
+                          <MapPin className="w-3 h-3 text-slate-500" />
+                        </div>
+                        <div className="w-6 h-6 bg-gradient-to-br from-orange-200 to-orange-300 rounded-full border-2 border-white flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 bg-orange-600 rounded-full"></div>
+                        </div>
+                      </div>
+                      <span className="text-xs text-slate-400">Temporäre Karte</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            }
+          />
         </div>
       </div>
     </div>
