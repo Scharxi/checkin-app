@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, Sparkles, CheckCircle, MapPin, Heart } from "lucide-react"
-import { useLocations, useCreateUser, useCheckIn, type Location, type User } from "@/hooks/use-checkin-api"
+import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle } from "lucide-react"
+import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName, useLogout, userStorage, type Location, type User } from "@/hooks/use-checkin-api"
 import { useSSE } from "@/hooks/use-sse"
 
 // Icon mapping
@@ -21,21 +21,31 @@ const iconMap = {
 }
 
 
-
 export default function CheckInApp() {
   const [userName, setUserName] = useState<string>("")
   const [user, setUser] = useState<User | null>(null)
   const [checkedInLocation, setCheckedInLocation] = useState<string | null>(null)
   const [checkInTime, setCheckInTime] = useState<Date | null>(null)
   const [animatingCardId, setAnimatingCardId] = useState<string | null>(null)
+  const [showExistingUserOption, setShowExistingUserOption] = useState(false)
 
   // Hooks
   const { data: locations = [], isLoading: locationsLoading } = useLocations()
   const createUserMutation = useCreateUser()
+  const loginMutation = useLoginWithName()
+  const logoutMutation = useLogout()
   const checkInMutation = useCheckIn()
+  const { data: autoLoginUser, isLoading: autoLoginLoading } = useAutoLogin()
   
   // SSE for live updates
   useSSE()
+
+  // Auto-login effect
+  useEffect(() => {
+    if (autoLoginUser) {
+      setUser(autoLoginUser)
+    }
+  }, [autoLoginUser])
 
   // Update checked in location from user's active check-ins
   useEffect(() => {
@@ -57,9 +67,42 @@ export default function CheckInApp() {
       try {
         const newUser = await createUserMutation.mutateAsync({ name: userName.trim() })
         setUser(newUser)
+        setUserName("")
+        setShowExistingUserOption(false)
       } catch (error) {
         console.error('Error creating user:', error)
+        // Show option to login with existing name
+        if (error instanceof Error && error.message === 'NAME_ALREADY_EXISTS') {
+          setShowExistingUserOption(true)
+        }
       }
+    }
+  }
+
+  const handleLoginWithExistingName = async () => {
+    if (userName.trim()) {
+      try {
+        const existingUser = await loginMutation.mutateAsync(userName.trim())
+        setUser(existingUser)
+        setUserName("")
+        setShowExistingUserOption(false)
+      } catch (error) {
+        console.error('Error logging in:', error)
+        setShowExistingUserOption(false)
+      }
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync()
+      setUser(null)
+      setCheckedInLocation(null)
+      setCheckInTime(null)
+      setUserName("")
+      setShowExistingUserOption(false)
+    } catch (error) {
+      console.error('Error logging out:', error)
     }
   }
 
@@ -115,6 +158,21 @@ export default function CheckInApp() {
     return gradientMap[color] || 'from-gray-500 to-gray-600'
   }
 
+  // Loading state for auto-login
+  if (autoLoginLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative mb-8">
+            <div className="w-32 h-32 border-4 border-indigo-200 rounded-full animate-spin mx-auto"></div>
+            <div className="absolute inset-0 w-32 h-32 border-4 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+          </div>
+          <p className="text-slate-600 text-lg">Anmeldung wird überprüft...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
@@ -128,7 +186,7 @@ export default function CheckInApp() {
               Check-In App
             </CardTitle>
             <CardDescription className="text-slate-600 text-lg">
-              Melde dich an, um Orte zu entdecken und einzuchecken
+              Gib deinen Namen ein, um loszulegen
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -138,16 +196,58 @@ export default function CheckInApp() {
                   type="text"
                   placeholder="Dein Name"
                   value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
+                  onChange={(e) => {
+                    setUserName(e.target.value)
+                    setShowExistingUserOption(false)
+                  }}
                   className="text-center text-lg h-12 border-2 border-indigo-200 focus:border-indigo-500 bg-white/70 backdrop-blur-sm rounded-xl"
                   required
                 />
               </div>
+
+              {showExistingUserOption && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm text-amber-800 font-medium mb-2">
+                        Name bereits vergeben
+                      </p>
+                      <p className="text-xs text-amber-700 mb-3">
+                        Möchtest du dich mit diesem Namen anmelden oder einen anderen Namen wählen?
+                      </p>
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button"
+                          onClick={handleLoginWithExistingName}
+                          size="sm"
+                          className="bg-amber-600 hover:bg-amber-700 text-white"
+                          disabled={loginMutation.isPending}
+                        >
+                          {loginMutation.isPending ? 'Anmelden...' : 'Anmelden'}
+                        </Button>
+                        <Button 
+                          type="button"
+                          onClick={() => {
+                            setShowExistingUserOption(false)
+                            setUserName("")
+                          }}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Anderen Namen wählen
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
                 size="lg"
-                disabled={createUserMutation.isPending}
+                disabled={createUserMutation.isPending || showExistingUserOption}
               >
                 {createUserMutation.isPending ? (
                   <div className="flex items-center gap-2">
@@ -156,8 +256,8 @@ export default function CheckInApp() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    Los geht's
+                    <MapPin className="w-5 h-5" />
+                    {showExistingUserOption ? 'Anderen Namen wählen' : 'Los geht\'s'}
                   </div>
                 )}
               </Button>
@@ -182,10 +282,10 @@ export default function CheckInApp() {
     )
   }
 
-      return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
-        {/* Hintergrund-Dekoration */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
+      {/* Hintergrund-Dekoration */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
       <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
 
@@ -199,13 +299,25 @@ export default function CheckInApp() {
               </h1>
               <p className="text-slate-600 text-lg">Wo möchtest du heute einchecken?</p>
             </div>
-            {checkedInLocation && checkInTime && (
-              <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 border-green-200 shadow-lg">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <Clock className="w-4 h-4" />
-                Eingecheckt seit {formatTime(checkInTime)}
-              </Badge>
-            )}
+            <div className="flex items-center gap-4">
+              {checkedInLocation && checkInTime && (
+                <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 border-green-200 shadow-lg">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <Clock className="w-4 h-4" />
+                  Eingecheckt seit {formatTime(checkInTime)}
+                </Badge>
+              )}
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="bg-white/70 backdrop-blur-sm border-white/20 hover:bg-white/90"
+                disabled={logoutMutation.isPending}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                {logoutMutation.isPending ? 'Abmelden...' : 'Abmelden'}
+              </Button>
+            </div>
           </div>
 
           {checkedInLocation && (
