@@ -26,7 +26,6 @@ export default function CheckInApp() {
   const [user, setUser] = useState<User | null>(null)
   const [checkedInLocation, setCheckedInLocation] = useState<string | null>(null)
   const [checkInTime, setCheckInTime] = useState<Date | null>(null)
-  const [animatingCardId, setAnimatingCardId] = useState<string | null>(null)
   const [showExistingUserOption, setShowExistingUserOption] = useState(false)
 
   // Hooks
@@ -109,9 +108,6 @@ export default function CheckInApp() {
   const handleCheckIn = async (locationId: string) => {
     if (!user) return
 
-    // Animationseffekt starten
-    setAnimatingCardId(locationId)
-
     try {
       const result = await checkInMutation.mutateAsync({
         userId: user.id,
@@ -127,9 +123,6 @@ export default function CheckInApp() {
       }
     } catch (error) {
       console.error('Error during check-in:', error)
-    } finally {
-      // Animation nach 1 Sekunde beenden
-      setTimeout(() => setAnimatingCardId(null), 1000)
     }
   }
 
@@ -344,7 +337,6 @@ export default function CheckInApp() {
           {locations.map((location: Location) => {
             const Icon = getIcon(location.icon)
             const isCheckedIn = checkedInLocation === location.id
-            const isAnimating = animatingCardId === location.id
 
             return (
               <Card
@@ -355,8 +347,6 @@ export default function CheckInApp() {
                     : "hover:shadow-2xl"
                 } ${
                   checkInMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''
-                } ${
-                  isAnimating ? 'animate-pulse scale-110 ring-4 ring-purple-400' : ''
                 }`}
                 onClick={() => !checkInMutation.isPending && handleCheckIn(location.id)}
               >
