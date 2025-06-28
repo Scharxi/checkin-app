@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useToast } from './use-toast'
+import { useWebsockets } from './use-websockets'
+
+// Re-export websocket connection status
+export const useWebsocketStatus = () => {
+  const { isConnected, error } = useWebsockets()
+  return { isConnected, error }
+}
 
 // Types
 export interface User {
@@ -143,30 +150,10 @@ const api = {
     return response.json()
   },
 
-  // CheckIns
+  // CheckIns - These are now handled via Websockets
   getCheckIns: async (): Promise<CheckIn[]> => {
     const response = await fetch('/api/checkins')
     if (!response.ok) throw new Error('Failed to fetch check-ins')
-    return response.json()
-  },
-
-  checkIn: async (data: { userId: string; locationId: string }) => {
-    const response = await fetch('/api/checkins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) throw new Error('Failed to check in')
-    return response.json()
-  },
-
-  checkOut: async (checkInId: string) => {
-    const response = await fetch('/api/checkins', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ checkInId }),
-    })
-    if (!response.ok) throw new Error('Failed to check out')
     return response.json()
   },
 }
@@ -199,16 +186,20 @@ export const useAutoLogin = () => {
           // User was deleted, clear storage
           userStorage.clearUser()
           toast({
-            title: 'Account nicht gefunden',
-            description: 'Dein gespeicherter Account wurde nicht gefunden. Bitte melde dich erneut an.',
+            title: 'Benutzer nicht gefunden',
+            description: 'Ihr Benutzerkonto wurde nicht gefunden. Bitte melden Sie sich erneut an.',
             variant: 'destructive',
           })
+          return null
         }
+        
+        console.error('Auto-login error:', error)
+        // Don't show error for network issues during auto-login
         return null
       }
     },
     retry: false,
-    staleTime: 5 * 60 * 1000, // 5 Minuten
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
 
@@ -220,50 +211,61 @@ export const useCreateUser = () => {
     mutationFn: api.createUser,
     onSuccess: (user) => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-      userStorage.setUser(user) // Store user in localStorage
+      userStorage.setUser(user)
       toast({
-        title: 'Anmeldung erfolgreich',
-        description: `Willkommen, ${user.name}! Du wirst automatisch wieder angemeldet.`,
+        title: 'Erfolgreich!',
+        description: `Benutzer "${user.name}" wurde erstellt.`,
       })
     },
-    onError: (error: Error) => {
-      let title = 'Fehler'
-      let description = error.message
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler'
       
-      if (error.message === 'NAME_ALREADY_EXISTS') {
-        title = 'Name bereits vergeben'
-        description = 'Dieser Name ist bereits vergeben. Bitte wähle einen anderen Namen oder gib deinen Namen nochmal ein, falls du dich wieder anmelden möchtest.'
+      if (message === 'NAME_ALREADY_EXISTS') {
+        toast({
+          title: 'Name bereits vergeben',
+          description: 'Dieser Name wird bereits verwendet. Bitte wählen Sie einen anderen.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Fehler beim Erstellen',
+          description: 'Der Benutzer konnte nicht erstellt werden.',
+          variant: 'destructive',
+        })
       }
-      
-      toast({
-        title,
-        description,
-        variant: 'destructive',
-      })
     },
   })
 }
 
 export const useLoginWithName = () => {
-  const queryClient = useQueryClient()
   const { toast } = useToast()
-
+  
   return useMutation({
-    mutationFn: api.getUserByName,
+    mutationFn: async (name: string) => {
+      const user = await api.getUserByName(name)
+      userStorage.setUser(user)
+      return user
+    },
     onSuccess: (user) => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      userStorage.setUser(user) // Store user in localStorage
       toast({
-        title: 'Willkommen zurück!',
-        description: `Hallo ${user.name}, schön dass du wieder da bist!`,
+        title: 'Anmeldung erfolgreich!',
+        description: `Willkommen zurück, ${user.name}!`,
       })
     },
-    onError: (error: Error) => {
-      toast({
-        title: 'Anmeldung fehlgeschlagen',
-        description: 'Benutzer mit diesem Namen nicht gefunden.',
-        variant: 'destructive',
-      })
+    onError: (error) => {
+      if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
+        toast({
+          title: 'Benutzer nicht gefunden',
+          description: 'Dieser Benutzer existiert nicht. Möchten Sie einen neuen Account erstellen?',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Anmeldung fehlgeschlagen',
+          description: 'Ein unerwarteter Fehler ist aufgetreten.',
+          variant: 'destructive',
+        })
+      }
     },
   })
 }
@@ -271,17 +273,18 @@ export const useLoginWithName = () => {
 export const useLogout = () => {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { disconnect } = useWebsockets()
 
   return useMutation({
     mutationFn: async () => {
       userStorage.clearUser()
-      return true
+      disconnect() // Disconnect websocket
+      queryClient.clear() // Clear all cached data
     },
     onSuccess: () => {
-      queryClient.clear()
       toast({
         title: 'Abgemeldet',
-        description: 'Du wurdest erfolgreich abgemeldet.',
+        description: 'Sie wurden erfolgreich abgemeldet.',
       })
     },
   })
@@ -300,17 +303,17 @@ export const useCreateLocation = () => {
 
   return useMutation({
     mutationFn: api.createLocation,
-    onSuccess: () => {
+    onSuccess: (location) => {
       queryClient.invalidateQueries({ queryKey: ['locations'] })
       toast({
-        title: 'Standort erstellt',
-        description: 'Der Standort wurde erfolgreich erstellt.',
+        title: 'Erfolgreich!',
+        description: `Location "${location.name}" wurde erstellt.`,
       })
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: 'Fehler',
-        description: error.message,
+        title: 'Fehler beim Erstellen',
+        description: 'Die Location konnte nicht erstellt werden.',
         variant: 'destructive',
       })
     },
@@ -324,26 +327,33 @@ export const useCheckIns = () => {
   })
 }
 
+// Updated hooks using Websockets instead of HTTP requests
 export const useCheckIn = () => {
-  const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { checkIn } = useWebsockets()
 
   return useMutation({
-    mutationFn: api.checkIn,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['checkins'] })
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
-      
-      const action = data.type === 'checkin' ? 'eingecheckt' : 'ausgecheckt'
-      toast({
-        title: `${action.charAt(0).toUpperCase() + action.slice(1)}`,
-        description: `Du hast dich erfolgreich ${action}.`,
-      })
+    mutationFn: async ({ userId, locationId }: { userId: string; locationId: string }) => {
+      const result = await checkIn({ userId, locationId })
+      if (!result.success) {
+        throw new Error(result.error || 'Check-in fehlgeschlagen')
+      }
+      return result.data
     },
-    onError: (error: Error) => {
+    onSuccess: (data) => {
+      if (data) {
+        const action = data.isActive ? 'eingecheckt' : 'ausgecheckt'
+        toast({
+          title: `Erfolgreich ${action}!`,
+          description: `Sie sind ${action} bei ${data.location.name}.`,
+        })
+      }
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Check-in fehlgeschlagen'
       toast({
-        title: 'Fehler',
-        description: error.message,
+        title: 'Check-in Fehler',
+        description: message,
         variant: 'destructive',
       })
     },
@@ -351,23 +361,30 @@ export const useCheckIn = () => {
 }
 
 export const useCheckOut = () => {
-  const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { checkOut } = useWebsockets()
 
   return useMutation({
-    mutationFn: api.checkOut,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checkins'] })
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
-      toast({
-        title: 'Ausgecheckt',
-        description: 'Du hast dich erfolgreich ausgecheckt.',
-      })
+    mutationFn: async ({ checkInId, userId }: { checkInId?: string; userId?: string }) => {
+      const result = await checkOut({ checkInId, userId })
+      if (!result.success) {
+        throw new Error(result.error || 'Check-out fehlgeschlagen')
+      }
+      return result.data
     },
-    onError: (error: Error) => {
+    onSuccess: (data) => {
+      if (data) {
+        toast({
+          title: 'Erfolgreich ausgecheckt!',
+          description: `Sie sind ausgecheckt bei ${data.location.name}.`,
+        })
+      }
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Check-out fehlgeschlagen'
       toast({
-        title: 'Fehler',
-        description: error.message,
+        title: 'Check-out Fehler',
+        description: message,
         variant: 'destructive',
       })
     },
