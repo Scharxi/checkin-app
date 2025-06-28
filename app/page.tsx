@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle } from "lucide-react"
+import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle, RefreshCw, Menu, X } from "lucide-react"
 import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName, useLogout, useWebsocketStatus, userStorage, type Location, type User } from "@/hooks/use-checkin-api"
 import { ConnectionStatus } from "@/components/ui/connection-status"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Icon mapping
 const iconMap = {
@@ -27,6 +29,8 @@ export default function CheckInApp() {
   const [checkedInLocation, setCheckedInLocation] = useState<string | null>(null)
   const [checkInTime, setCheckInTime] = useState<Date | null>(null)
   const [showExistingUserOption, setShowExistingUserOption] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   // Hooks
   const { data: locations = [], isLoading: locationsLoading } = useLocations()
@@ -36,6 +40,7 @@ export default function CheckInApp() {
   const checkInMutation = useCheckIn()
   const { data: autoLoginUser, isLoading: autoLoginLoading } = useAutoLogin()
   const { isConnected, error: wsError } = useWebsocketStatus()
+  const isMobile = useIsMobile()
   
 
 
@@ -155,6 +160,13 @@ export default function CheckInApp() {
     return gradientMap[color] || 'from-gray-500 to-gray-600'
   }
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    // Simulate refresh delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    setIsRefreshing(false)
+  }
+
   // Loading state for auto-login
   if (autoLoginLoading) {
     return (
@@ -172,22 +184,22 @@ export default function CheckInApp() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+      <div className={`min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center ${isMobile ? 'p-6' : 'p-4'}`}>
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 backdrop-blur-3xl"></div>
-        <Card className="w-full max-w-md relative backdrop-blur-lg bg-white/80 border-white/20 shadow-2xl">
+        <Card className={`w-full ${isMobile ? 'max-w-sm' : 'max-w-md'} relative backdrop-blur-lg bg-white/80 border-white/20 shadow-2xl`}>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-              <MapPin className="w-8 h-8 text-white" />
+            <div className={`mx-auto ${isMobile ? 'mb-6 w-20 h-20' : 'mb-4 w-16 h-16'} bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center`}>
+              <MapPin className={isMobile ? "w-10 h-10 text-white" : "w-8 h-8 text-white"} />
             </div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <CardTitle className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent`}>
               Check-In App
             </CardTitle>
-            <CardDescription className="text-slate-600 text-lg">
+            <CardDescription className={`text-slate-600 ${isMobile ? 'text-base' : 'text-lg'}`}>
               Gib deinen Namen ein, um loszulegen
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleRegister} className="space-y-6">
+            <form onSubmit={handleRegister} className={isMobile ? "space-y-4" : "space-y-6"}>
               <div>
                 <Input
                   type="text"
@@ -197,7 +209,7 @@ export default function CheckInApp() {
                     setUserName(e.target.value)
                     setShowExistingUserOption(false)
                   }}
-                  className="text-center text-lg h-12 border-2 border-indigo-200 focus:border-indigo-500 bg-white/70 backdrop-blur-sm rounded-xl"
+                  className={`text-center ${isMobile ? 'text-base h-14' : 'text-lg h-12'} border-2 border-indigo-200 focus:border-indigo-500 bg-white/70 backdrop-blur-sm rounded-xl`}
                   required
                 />
               </div>
@@ -242,7 +254,7 @@ export default function CheckInApp() {
 
               <Button 
                 type="submit" 
-                className="w-full h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" 
+                className={`w-full ${isMobile ? 'h-14' : 'h-12'} bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform ${isMobile ? 'active:scale-95' : 'hover:scale-105'}`} 
                 size="lg"
                 disabled={createUserMutation.isPending || showExistingUserOption}
               >
@@ -279,23 +291,83 @@ export default function CheckInApp() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
-      {/* Hintergrund-Dekoration */}
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
-      <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
-
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-                Hallo, {user.name}! 👋
-              </h1>
-              <p className="text-slate-600 text-lg">Wo möchtest du heute einchecken?</p>
+  const mainContent = (
+    <div className={`container mx-auto ${isMobile ? 'px-4 py-4' : 'px-4 py-8'} relative z-10`}>
+      {/* Header */}
+      <div className={`${isMobile ? 'mb-4' : 'mb-8'}`}>
+        <div className={`${isMobile ? 'flex flex-col gap-4' : 'flex items-center justify-between'} mb-6`}>
+          <div className={isMobile ? 'text-center' : ''}>
+            <h1 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2`}>
+              Hallo, {user.name}! 👋
+            </h1>
+            <p className={`text-slate-600 ${isMobile ? 'text-base' : 'text-lg'}`}>Wo möchtest du heute einchecken?</p>
+          </div>
+          
+          {/* Mobile Header Controls */}
+          {isMobile ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <ConnectionStatus isConnected={isConnected} error={wsError} />
+                {!showMobileMenu && (
+                  <Button
+                    onClick={() => setShowMobileMenu(true)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/70 backdrop-blur-sm border-white/20 hover:bg-white/90"
+                  >
+                    <Menu className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              
+              {checkedInLocation && checkInTime && (
+                <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 border-green-200 shadow-lg w-full justify-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <Clock className="w-4 h-4" />
+                  Eingecheckt seit {formatTime(checkInTime)}
+                </Badge>
+              )}
+              
+              {/* Mobile Menu */}
+              {showMobileMenu && (
+                <div className="bg-white/90 backdrop-blur-lg rounded-xl p-4 border border-white/20 shadow-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-slate-800">Menü</h3>
+                    <Button
+                      onClick={() => setShowMobileMenu(false)}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleRefresh}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      disabled={isRefreshing}
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
+                    </Button>
+                    <Button
+                      onClick={handleLogout}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      disabled={logoutMutation.isPending}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      {logoutMutation.isPending ? 'Abmelden...' : 'Abmelden'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
+          ) : (
+            /* Desktop Header Controls */
             <div className="flex items-center gap-4">
               <ConnectionStatus isConnected={isConnected} error={wsError} />
               {checkedInLocation && checkInTime && (
@@ -305,6 +377,16 @@ export default function CheckInApp() {
                   Eingecheckt seit {formatTime(checkInTime)}
                 </Badge>
               )}
+              <Button
+                onClick={handleRefresh}
+                variant="outline"
+                size="sm"
+                className="bg-white/70 backdrop-blur-sm border-white/20 hover:bg-white/90"
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
+              </Button>
               <Button
                 onClick={handleLogout}
                 variant="outline"
@@ -316,125 +398,142 @@ export default function CheckInApp() {
                 {logoutMutation.isPending ? 'Abmelden...' : 'Abmelden'}
               </Button>
             </div>
+          )}
+        </div>
+
+        {wsError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 shadow-xl">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-red-800 text-lg">
+                  Websocket-Verbindung unterbrochen
+                </p>
+                <p className="text-red-600 text-sm">
+                  {wsError}
+                </p>
+                <p className="text-red-500 text-xs mt-1">
+                  Bitte starten Sie das Backend: <code className="bg-red-100 px-1 rounded">cd backend && npm run dev</code>
+                </p>
+              </div>
+            </div>
           </div>
+        )}
 
-          {wsError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-6 shadow-xl">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
-                  <AlertCircle className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-red-800 text-lg">
-                    Websocket-Verbindung unterbrochen
-                  </p>
-                  <p className="text-red-600 text-sm">
-                    {wsError}
-                  </p>
-                  <p className="text-red-500 text-xs mt-1">
-                    Bitte starten Sie das Backend: <code className="bg-red-100 px-1 rounded">cd backend && npm run dev</code>
-                  </p>
-                </div>
+        {checkedInLocation && (
+          <div className="bg-white/70 backdrop-blur-lg rounded-xl p-6 border border-white/20 shadow-xl">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800 text-lg">
+                  Du bist eingecheckt bei: {locations.find((l) => l.id === checkedInLocation)?.name}
+                </p>
+                <p className="text-slate-600">
+                  Status: Aktiv <Heart className="w-4 h-4 inline text-red-500 ml-1" />
+                </p>
               </div>
             </div>
-          )}
-
-          {checkedInLocation && (
-            <div className="bg-white/70 backdrop-blur-lg rounded-xl p-6 border border-white/20 shadow-xl">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-800 text-lg">
-                    Du bist eingecheckt bei: {locations.find((l) => l.id === checkedInLocation)?.name}
-                  </p>
-                  <p className="text-slate-600">
-                    Status: Aktiv <Heart className="w-4 h-4 inline text-red-500 ml-1" />
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Locations Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {locations.map((location: Location) => {
-            const Icon = getIcon(location.icon)
-            const isCheckedIn = checkedInLocation === location.id
-
-            return (
-              <Card
-                key={location.id}
-                className={`cursor-pointer transition-all duration-300 transform hover:scale-105 backdrop-blur-lg bg-white/80 border-white/20 shadow-xl hover:shadow-2xl ${
-                  isCheckedIn 
-                    ? "ring-4 ring-green-400 shadow-2xl bg-gradient-to-br from-green-50/90 to-blue-50/90 scale-105" 
-                    : "hover:shadow-2xl"
-                } ${
-                  checkInMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                onClick={() => !checkInMutation.isPending && handleCheckIn(location.id)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className={`p-2 rounded-lg bg-gradient-to-br ${getGradientClass(location.color)} text-white shadow-lg transform transition-transform duration-300 hover:scale-110`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex items-center gap-1 bg-white/70 backdrop-blur-sm rounded-full px-2 py-0.5 shadow-md">
-                      <Users className="w-3 h-3 text-slate-600" />
-                      <span className="text-xs font-medium text-slate-700">{location.users}</span>
-                    </div>
-                  </div>
-
-                  <h3 className="font-bold text-base text-slate-800 mb-1 leading-tight">
-                    {location.name}
-                  </h3>
-                  <p className="text-slate-600 text-xs mb-2 leading-snug line-clamp-2">
-                    {location.description}
-                  </p>
-
-                  {/* Check-In Status */}
-                  {isCheckedIn && (
-                    <div className="mb-2">
-                      <div className="flex items-center gap-1 bg-green-100 text-green-800 px-2 py-1 rounded-md">
-                        <CheckCircle className="w-3 h-3" />
-                        <span className="font-medium text-xs">Eingecheckt</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Show current users */}
-                  {location.currentUsers.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-white/30">
-                      <p className="text-xs text-slate-500 mb-1 font-medium">Aktuelle Benutzer:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {location.currentUsers.slice(0, 2).map((currentUser) => (
-                          <Badge key={currentUser.id} variant="outline" className="text-xs bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white/90 transition-all px-1.5 py-0.5">
-                            {currentUser.name}
-                          </Badge>
-                        ))}
-                        {location.currentUsers.length > 2 && (
-                          <Badge variant="outline" className="text-xs bg-white/70 backdrop-blur-sm border-slate-200 px-1.5 py-0.5">
-                            +{location.currentUsers.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action Hint */}
-                  <div className="mt-2 pt-2 border-t border-white/30">
-                    <p className="text-xs text-slate-500 text-center">
-                      {isCheckedIn ? "Klicken zum Auschecken" : "Klicken zum Einchecken"}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+          </div>
+        )}
       </div>
+
+      {/* Locations Grid */}
+      <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'}`}>
+        {locations.map((location: Location) => {
+          const Icon = getIcon(location.icon)
+          const isCheckedIn = checkedInLocation === location.id
+
+          return (
+            <Card
+              key={location.id}
+              className={`cursor-pointer transition-all duration-300 ${isMobile ? 'transform active:scale-95' : 'transform hover:scale-105'} backdrop-blur-lg bg-white/80 border-white/20 shadow-xl ${isMobile ? 'active:shadow-2xl' : 'hover:shadow-2xl'} ${
+                isCheckedIn 
+                  ? "ring-4 ring-green-400 shadow-2xl bg-gradient-to-br from-green-50/90 to-blue-50/90 scale-105" 
+                  : isMobile ? "" : "hover:shadow-2xl"
+              } ${
+                checkInMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              onClick={() => !checkInMutation.isPending && handleCheckIn(location.id)}
+            >
+              <CardContent className={isMobile ? "p-4" : "p-3"}>
+                <div className={`flex items-start justify-between ${isMobile ? 'mb-3' : 'mb-2'}`}>
+                  <div className={`${isMobile ? 'p-3' : 'p-2'} rounded-lg bg-gradient-to-br ${getGradientClass(location.color)} text-white shadow-lg transform transition-transform duration-300 ${isMobile ? 'active:scale-95' : 'hover:scale-110'}`}>
+                    <Icon className={isMobile ? "w-6 h-6" : "w-4 h-4"} />
+                  </div>
+                  <div className={`flex items-center gap-1 bg-white/70 backdrop-blur-sm rounded-full ${isMobile ? 'px-3 py-1' : 'px-2 py-0.5'} shadow-md`}>
+                    <Users className={isMobile ? "w-4 h-4 text-slate-600" : "w-3 h-3 text-slate-600"} />
+                    <span className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium text-slate-700`}>{location.users}</span>
+                  </div>
+                </div>
+
+                <h3 className={`font-bold ${isMobile ? 'text-lg' : 'text-base'} text-slate-800 ${isMobile ? 'mb-2' : 'mb-1'} leading-tight`}>
+                  {location.name}
+                </h3>
+                <p className={`text-slate-600 ${isMobile ? 'text-sm mb-3' : 'text-xs mb-2'} leading-snug line-clamp-2`}>
+                  {location.description}
+                </p>
+
+                {/* Check-In Status */}
+                {isCheckedIn && (
+                  <div className={isMobile ? "mb-3" : "mb-2"}>
+                    <div className={`flex items-center gap-2 bg-green-100 text-green-800 ${isMobile ? 'px-3 py-2' : 'px-2 py-1'} rounded-md`}>
+                      <CheckCircle className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
+                      <span className={`font-medium ${isMobile ? 'text-sm' : 'text-xs'}`}>Eingecheckt</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show current users */}
+                {location.currentUsers.length > 0 && (
+                  <div className={`${isMobile ? 'mt-3 pt-3' : 'mt-2 pt-2'} border-t border-white/30`}>
+                    <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-slate-500 ${isMobile ? 'mb-2' : 'mb-1'} font-medium`}>Aktuelle Benutzer:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {location.currentUsers.slice(0, isMobile ? 3 : 2).map((currentUser) => (
+                        <Badge key={currentUser.id} variant="outline" className={`${isMobile ? 'text-sm px-2 py-1' : 'text-xs px-1.5 py-0.5'} bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white/90 transition-all`}>
+                          {currentUser.name}
+                        </Badge>
+                      ))}
+                      {location.currentUsers.length > (isMobile ? 3 : 2) && (
+                        <Badge variant="outline" className={`${isMobile ? 'text-sm px-2 py-1' : 'text-xs px-1.5 py-0.5'} bg-white/70 backdrop-blur-sm border-slate-200`}>
+                          +{location.currentUsers.length - (isMobile ? 3 : 2)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Hint */}
+                <div className={`${isMobile ? 'mt-4 pt-3' : 'mt-2 pt-2'} border-t border-white/30`}>
+                  <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-slate-500 text-center font-medium`}>
+                    {isCheckedIn ? "Tippen zum Auschecken" : "Tippen zum Einchecken"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
+      {/* Hintergrund-Dekoration */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
+      <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
+
+      {isMobile ? (
+        <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
+          {mainContent}
+        </PullToRefresh>
+      ) : (
+        mainContent
+      )}
     </div>
   )
 }
