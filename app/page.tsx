@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle } from "lucide-react"
-import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName, useLogout, userStorage, type Location, type User } from "@/hooks/use-checkin-api"
-import { useSSE } from "@/hooks/use-sse"
+import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName, useLogout, useWebsocketStatus, userStorage, type Location, type User } from "@/hooks/use-checkin-api"
+import { ConnectionStatus } from "@/components/ui/connection-status"
 
 // Icon mapping
 const iconMap = {
@@ -35,9 +35,9 @@ export default function CheckInApp() {
   const logoutMutation = useLogout()
   const checkInMutation = useCheckIn()
   const { data: autoLoginUser, isLoading: autoLoginLoading } = useAutoLogin()
+  const { isConnected, error: wsError } = useWebsocketStatus()
   
-  // SSE for live updates
-  useSSE()
+
 
   // Auto-login effect
   useEffect(() => {
@@ -114,12 +114,16 @@ export default function CheckInApp() {
         locationId,
       })
 
-      if (result.type === 'checkout') {
-        setCheckedInLocation(null)
-        setCheckInTime(null)
-      } else {
-        setCheckedInLocation(locationId)
-        setCheckInTime(new Date(result.checkIn.checkedInAt))
+      if (result) {
+        if (result.isActive) {
+          // User checked in
+          setCheckedInLocation(locationId)
+          setCheckInTime(new Date(result.checkedInAt))
+        } else {
+          // User checked out
+          setCheckedInLocation(null)
+          setCheckInTime(null)
+        }
       }
     } catch (error) {
       console.error('Error during check-in:', error)
@@ -293,6 +297,7 @@ export default function CheckInApp() {
               <p className="text-slate-600 text-lg">Wo möchtest du heute einchecken?</p>
             </div>
             <div className="flex items-center gap-4">
+              <ConnectionStatus isConnected={isConnected} error={wsError} />
               {checkedInLocation && checkInTime && (
                 <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 border-green-200 shadow-lg">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -312,6 +317,27 @@ export default function CheckInApp() {
               </Button>
             </div>
           </div>
+
+          {wsError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 shadow-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-red-800 text-lg">
+                    Websocket-Verbindung unterbrochen
+                  </p>
+                  <p className="text-red-600 text-sm">
+                    {wsError}
+                  </p>
+                  <p className="text-red-500 text-xs mt-1">
+                    Bitte starten Sie das Backend: <code className="bg-red-100 px-1 rounded">cd backend && npm run dev</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {checkedInLocation && (
             <div className="bg-white/70 backdrop-blur-lg rounded-xl p-6 border border-white/20 shadow-xl">
