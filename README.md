@@ -1,231 +1,178 @@
-# Check-In App
+# Check-In App mit Websockets
 
-Ein Live Check-In System für Teams mit Next.js, PostgreSQL, Prisma und Server-Sent Events (SSE).
+Eine moderne Check-In-App mit Echtzeit-Updates über Websockets.
 
-## Features
+## 🚀 Features
 
-- ✅ **Live Updates** - Sofortige Benachrichtigungen über Check-ins/Check-outs via SSE
-- ✅ **PostgreSQL Database** - Robuste Datenhaltung mit Prisma ORM
-- ✅ **React Query** - Effiziente Datenverwaltung und Caching
-- ✅ **Modern UI** - Responsive Design mit Tailwind CSS und shadcn/ui
-- ✅ **Docker Support** - Einfache Entwicklungsumgebung
+- ✅ **Echtzeit Websocket-Kommunikation** statt SSE
+- ✅ **Bidirektionale Events** für sofortige Updates
+- ✅ **Separates Express.js Backend** mit Socket.io
+- ✅ **Next.js Frontend** mit React Query
+- ✅ **Type-Safe** TypeScript überall
+- ✅ **Prisma ORM** für Datenbankzugriff
+- ✅ **Docker Compose** für einfaches Setup
 
-## Technologie Stack
+## 🏗️ Architektur
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Backend**: Next.js API Routes, Server-Sent Events
-- **Database**: PostgreSQL mit Prisma ORM
-- **Styling**: Tailwind CSS, shadcn/ui
-- **State Management**: React Query
-- **Containerization**: Docker Compose
-
-## Installation
-
-### Voraussetzungen
-
-- Node.js 18+
-- Docker und Docker Compose
-- pnpm (empfohlen) oder npm
-
-### Setup
-
-1. **Repository klonen**
-```bash
-git clone <repository-url>
-cd checkin-app
+```
+Frontend (Next.js)    Backend (Express.js)    Database (PostgreSQL)
+     :3000         ←→       :3001           ←→       :5432
+  
+  [React Query]      [Socket.io Server]      [Prisma Client]
+  [Socket.io Client] [CheckIn Service]       [Check-in Tables]
 ```
 
-2. **Dependencies installieren**
-```bash
-pnpm install
+## 🛠️ Setup
+
+### 1. Umgebungsvariablen
+
+**Frontend (.env.local):**
+```env
+NEXT_PUBLIC_WS_URL=http://localhost:3001
+DATABASE_URL="postgresql://username:password@localhost:5432/checkin_db"
 ```
 
-3. **Umgebungsvariablen konfigurieren**
-```bash
-cp .env.example .env.local
+**Backend (backend/.env):**
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/checkin_db"
+PORT=3001
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:3000
 ```
 
-4. **Datenbank starten**
+### 2. Mit Docker Compose (empfohlen)
+
 ```bash
+# Gesamte App starten
 docker-compose up -d
+
+# Logs anzeigen
+docker-compose logs -f
+
+# Services einzeln stoppen
+docker-compose down
 ```
 
-5. **Prisma Setup**
+### 3. Lokale Entwicklung
+
+**Backend starten:**
 ```bash
-# Datenbank Schema pushen
-pnpm db:push
-
-# Datenbank mit Initial-Daten befüllen
-pnpm db:seed
+cd backend
+npm install
+cp .env.example .env  # Und Werte anpassen
+npm run dev
 ```
 
-6. **Development Server starten**
+**Frontend starten:**
 ```bash
-pnpm dev
+npm install
+cp .env.local.example .env.local  # Und Werte anpassen
+npm run dev
 ```
 
-Die Anwendung ist jetzt unter `http://localhost:3000` verfügbar.
-
-## Nutzung
-
-### Für Benutzer
-
-1. **Registrierung**: Geben Sie Ihren Namen ein
-2. **Check-in**: Klicken Sie auf einen Standort zum Einchecken
-3. **Check-out**: Klicken Sie erneut auf den aktuellen Standort
-4. **Live-Updates**: Sehen Sie in Echtzeit, wer wo eingecheckt ist
-
-### Für Controller
-
-Standorte können über die API verwaltet werden:
-
+**Datenbank Setup:**
 ```bash
-# Neuen Standort erstellen
-curl -X POST http://localhost:3000/api/locations \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Neuer Standort",
-    "description": "Beschreibung des Standorts",
-    "icon": "MapPin",
-    "color": "bg-indigo-500"
-  }'
+# Im backend/ oder root-Verzeichnis
+npm run db:push
 ```
 
-## API Endpunkte
+## 🔌 Websocket Events
 
-### Users
-- `GET /api/users` - Alle Benutzer abrufen
-- `POST /api/users` - Neuen Benutzer erstellen
+### Client → Server
+- `get:initial-data` - Initiale Daten laden
+- `user:checkin` - User einchecken  
+- `user:checkout` - User auschecken
 
-### Locations  
-- `GET /api/locations` - Alle Standorte abrufen
-- `POST /api/locations` - Neuen Standort erstellen
+### Server → Client
+- `checkin:update` - Neuer Check-in
+- `checkout:update` - Check-out Update
+- `locations:update` - Location-Updates
+- `error` - Fehler-Events
 
-### Check-ins
-- `GET /api/checkins` - Alle aktiven Check-ins abrufen
-- `POST /api/checkins` - Check-in/Check-out durchführen
-- `DELETE /api/checkins` - Manueller Check-out
+## 🗄️ Datenbank-Architektur
 
-### Live Updates
-- `GET /api/sse` - Server-Sent Events Stream
+**Gemeinsames Schema** für Frontend und Backend:
 
-## Datenbank Schema
-
-```prisma
-model User {
-  id        String     @id @default(cuid())
-  name      String
-  email     String?    @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  checkIns  CheckIn[]
-}
-
-model Location {
-  id          String     @id @default(cuid())
-  name        String
-  description String
-  icon        String
-  color       String
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  checkIns    CheckIn[]
-}
-
-model CheckIn {
-  id           String    @id @default(cuid())
-  userId       String
-  locationId   String
-  checkedInAt  DateTime  @default(now())
-  checkedOutAt DateTime?
-  isActive     Boolean   @default(true)
-  user         User      @relation(fields: [userId], references: [id])
-  location     Location  @relation(fields: [locationId], references: [id])
-}
-```
-
-## Verfügbare Scripts
+- ✅ **Ein Schema** in `prisma/schema.prisma`
+- ✅ **Separate PrismaClient-Instanzen** für jeden Service
+- ✅ **Gleiche Datenbank** für alle Services
+- ✅ **Single Source of Truth** für Datenmodelle
 
 ```bash
-# Development
-pnpm dev          # Development Server starten
-pnpm build        # Production Build erstellen
-pnpm start        # Production Server starten
-
-# Database
-pnpm db:push      # Schema zur Datenbank pushen
-pnpm db:migrate   # Migration erstellen und ausführen
-pnpm db:seed      # Datenbank mit Initial-Daten befüllen
-pnpm db:studio    # Prisma Studio öffnen
-
-# Utilities
-pnpm lint         # Code linting
+# Frontend nutzt: prisma/schema.prisma
+# Backend nutzt: prisma/schema.prisma (via --schema flag)
+# Beide Services → Gleiche PostgreSQL-Datenbank
 ```
 
-## Entwicklung
+## 🔄 Migration von SSE
 
-### Neue Standorte hinzufügen
+Die App wurde von Server-Sent Events (SSE) auf Websockets umgestellt:
 
-Bearbeiten Sie `prisma/seed.ts` um neue Standard-Standorte hinzuzufügen:
+### Vorher (SSE):
+- ✅ Einfache Implementation in Next.js
+- ❌ Nur unidirektionale Kommunikation
+- ❌ Keine bidirektionalen Events
+- ❌ HTTP-Requests für Aktionen
 
-```typescript
-const newLocation = {
-  id: "new-location",
-  name: "Neuer Standort",
-  description: "Beschreibung",
-  icon: "MapPin", // Lucide React Icon Name
-  color: "bg-blue-500", // Tailwind CSS Klasse
-}
+### Nachher (Websockets):
+- ✅ Bidirektionale Echtzeit-Kommunikation
+- ✅ Sofortige Updates ohne HTTP-Requests
+- ✅ Type-safe Events mit Socket.io
+- ✅ Bessere Error-Handling
+- ✅ Connection Status Management
+
+## 📁 Projektstruktur
+
+```
+checkin-app/
+├── app/                    # Next.js Frontend
+│   ├── api/               # REST APIs (Users, Locations)
+│   └── ...
+├── backend/               # Express.js + Socket.io Backend
+│   ├── src/
+│   │   ├── services/     # Business Logic
+│   │   ├── types/        # TypeScript Definitionen
+│   │   └── server.ts     # Hauptserver
+│   └── (nutzt gemeinsames Schema)
+├── prisma/               # 🔗 Gemeinsames Datenbank Schema
+│   └── schema.prisma     # Einzige Quelle der Wahrheit
+├── hooks/                 # React Hooks
+│   ├── use-websockets.ts # Websocket Hook
+│   └── use-checkin-api.ts # API Hook (angepasst)
+└── components/           # React Components
 ```
 
-### Icons
+## 🐛 Debugging
 
-Unterstützte Icons (Lucide React):
-- `Briefcase`, `Coffee`, `Dumbbell`, `Book`, `ShoppingBag`, `Users`, `MapPin`, etc.
-
-### Farben
-
-Unterstützte Tailwind Farben:
-- `bg-blue-500`, `bg-red-500`, `bg-green-500`, `bg-yellow-500`, etc.
-
-## Deployment
-
-### Docker Production
-
+**Backend Logs:**
 ```bash
-# Production Image erstellen
-docker build -t checkin-app .
-
-# Mit Docker Compose deployen
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose logs backend -f
 ```
 
-### Vercel Deployment
-
-1. Vercel PostgreSQL Database erstellen
-2. Umgebungsvariablen in Vercel konfigurieren
-3. Repository zu Vercel verbinden
-4. Automatisches Deployment
-
-## Troubleshooting
-
-### Datenbank Probleme
-
+**Websocket Connection testen:**
 ```bash
-# Datenbank zurücksetzen
-docker-compose down -v
-docker-compose up -d
-pnpm db:push
-pnpm db:seed
+curl http://localhost:3001/health
 ```
 
-### SSE Verbindungsprobleme
+**Verbindungsstatus im Frontend:**
+- Check Browser DevTools → Console
+- Suche nach `🔌 Websocket connected`
 
-- Prüfen Sie die Browser-Konsole auf Fehler
-- Stellen Sie sicher, dass der Server läuft
-- Überprüfen Sie Firewall-Einstellungen
+## 🚦 Status Indicators
 
-## Lizenz
+- **🟢 Connected** - Websocket verbunden
+- **🟡 Connecting** - Verbindung wird hergestellt  
+- **🔴 Disconnected** - Keine Verbindung
 
-MIT License - siehe [LICENSE](LICENSE) für Details. 
+## 📚 Tech Stack
+
+- **Frontend:** Next.js 15, React 19, TypeScript
+- **Backend:** Express.js, Socket.io, TypeScript
+- **Database:** PostgreSQL, Prisma ORM
+- **UI:** TailwindCSS, Shadcn/ui, Radix UI
+- **State:** React Query, Websockets
+- **Dev:** Docker, ESLint, TypeScript
+
+---
+
+Die App ist jetzt vollständig auf Websockets umgestellt und bietet Echtzeit-Kommunikation mit besserer Performance und User Experience! 
