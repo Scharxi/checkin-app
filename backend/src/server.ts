@@ -141,6 +141,31 @@ io.on('connection', (socket) => {
   })
 })
 
+// API endpoint to broadcast location events (called from Next.js API routes)
+app.post('/broadcast/location-created', (req, res) => {
+  try {
+    const location = req.body
+    io.emit('location:created', location)
+    console.log(`📡 Broadcasting location created: ${location.name}`)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error broadcasting location created:', error)
+    res.status(500).json({ error: 'Failed to broadcast event' })
+  }
+})
+
+app.post('/broadcast/location-deleted', (req, res) => {
+  try {
+    const locationData = req.body
+    io.emit('location:deleted', locationData)
+    console.log(`📡 Broadcasting location deleted: ${locationData.name}`)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error broadcasting location deleted:', error)
+    res.status(500).json({ error: 'Failed to broadcast event' })
+  }
+})
+
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Express error:', err)

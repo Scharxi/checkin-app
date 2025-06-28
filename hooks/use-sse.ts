@@ -37,6 +37,12 @@ export const useSSE = () => {
             break
 
           case 'location_created':
+            console.log('✨ SSE: Location created')
+            queryClient.invalidateQueries({ queryKey: ['locations'] })
+            break
+
+          case 'location_deleted':
+            console.log('🗑️ SSE: Location deleted')
             queryClient.invalidateQueries({ queryKey: ['locations'] })
             break
 

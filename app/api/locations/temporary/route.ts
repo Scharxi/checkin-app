@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { broadcastUpdate } from '@/app/api/sse/route'
+import { broadcastLocationCreated, broadcastLocationDeleted } from '@/lib/websocket-broadcast'
 import { z } from 'zod'
 
 const createTemporaryLocationSchema = z.object({
@@ -67,8 +68,19 @@ export const POST = async (request: NextRequest) => {
       })),
     }
 
-    // Broadcast location creation update
+    // Broadcast location creation update via SSE
     await broadcastUpdate('location_created', locationWithUsers)
+    
+    // Broadcast location creation update via WebSocket
+    await broadcastLocationCreated({
+      ...locationWithUsers,
+      createdAt: locationWithUsers.createdAt.toISOString(),
+      updatedAt: locationWithUsers.updatedAt.toISOString(),
+      currentUsers: locationWithUsers.currentUsers.map(user => ({
+        ...user,
+        checkedInAt: user.checkedInAt.toISOString(),
+      })),
+    })
 
     return NextResponse.json(locationWithUsers, { status: 201 })
   } catch (error) {
@@ -133,6 +145,20 @@ export const autoDeleteEmptyTemporaryLocations = async () => {
           isActive: false
         }
       })
+
+      // Broadcast deletion events for each deleted location
+      for (const location of candidatesForDeletion) {
+        const locationData = {
+          id: location.id,
+          name: location.name
+        }
+        
+        // Broadcast via SSE
+        await broadcastUpdate('location_deleted', locationData)
+        
+        // Broadcast via WebSocket
+        await broadcastLocationDeleted(locationData)
+      }
 
       console.log(`Auto-deleted ${candidatesForDeletion.length} empty temporary locations`)
     }

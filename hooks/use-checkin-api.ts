@@ -350,16 +350,9 @@ export const useCreateTemporaryLocation = () => {
 
   return useMutation({
     mutationFn: api.createTemporaryLocation,
-    onSuccess: async (location) => {
-      // Multiple strategies to ensure immediate UI update
-      await queryClient.invalidateQueries({ queryKey: ['locations'] })
-      await queryClient.refetchQueries({ queryKey: ['locations'] })
-      
-      // Add small delay then force another update to be absolutely sure
-      setTimeout(async () => {
-        await queryClient.invalidateQueries({ queryKey: ['locations'] })
-      }, 500)
-      
+    onSuccess: (location) => {
+      // Real-time events will handle the UI update automatically
+      // Just show the success message
       toast({
         title: 'Temporäre Karte erstellt!',
         description: `"${location.name}" wurde als temporäre Karte erstellt.`,
