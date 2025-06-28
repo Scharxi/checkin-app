@@ -7,7 +7,6 @@ import { Toaster } from '@/components/ui/toaster'
 export const metadata: Metadata = {
   title: 'Check-In App',
   description: 'Live Check-In System für Teams',
-  generator: 'v0.dev',
 }
 
 export default function RootLayout({
