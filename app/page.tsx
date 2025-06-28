@@ -452,7 +452,7 @@ export default function CheckInApp() {
               key={location.id}
               className={`cursor-pointer transition-all duration-300 ${isMobile ? 'transform active:scale-95' : 'transform hover:scale-105'} backdrop-blur-lg bg-white/80 border-white/20 shadow-xl ${isMobile ? 'active:shadow-2xl' : 'hover:shadow-2xl'} ${
                 isCheckedIn 
-                  ? "ring-4 ring-green-400 shadow-2xl bg-gradient-to-br from-green-50/90 to-blue-50/90 scale-105" 
+                  ? "ring-4 ring-green-400 shadow-2xl bg-gradient-to-br from-green-50/90 to-blue-50/90" 
                   : isMobile ? "" : "hover:shadow-2xl"
               } ${
                 checkInMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''
@@ -477,41 +477,24 @@ export default function CheckInApp() {
                   {location.description}
                 </p>
 
-                {/* Check-In Status */}
-                {isCheckedIn && (
-                  <div className={isMobile ? "mb-3" : "mb-2"}>
-                    <div className={`flex items-center gap-2 bg-green-100 text-green-800 ${isMobile ? 'px-3 py-2' : 'px-2 py-1'} rounded-md`}>
-                      <CheckCircle className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
-                      <span className={`font-medium ${isMobile ? 'text-sm' : 'text-xs'}`}>Eingecheckt</span>
-                    </div>
-                  </div>
-                )}
-
                 {/* Show current users */}
                 {location.currentUsers.length > 0 && (
                   <div className={`${isMobile ? 'mt-3 pt-3' : 'mt-2 pt-2'} border-t border-white/30`}>
                     <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-slate-500 ${isMobile ? 'mb-2' : 'mb-1'} font-medium`}>Aktuelle Benutzer:</p>
                     <div className="flex flex-wrap gap-1">
-                      {location.currentUsers.slice(0, isMobile ? 3 : 2).map((currentUser) => (
-                        <Badge key={currentUser.id} variant="outline" className={`${isMobile ? 'text-sm px-2 py-1' : 'text-xs px-1.5 py-0.5'} bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white/90 transition-all`}>
+                      {location.currentUsers.slice(0, isMobile ? 8 : 6).map((currentUser) => (
+                        <Badge key={currentUser.id} variant="outline" className={`${isMobile ? 'text-xs px-2 py-0.5' : 'text-xs px-1.5 py-0.5'} bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white/90 transition-all`}>
                           {currentUser.name}
                         </Badge>
                       ))}
-                      {location.currentUsers.length > (isMobile ? 3 : 2) && (
-                        <Badge variant="outline" className={`${isMobile ? 'text-sm px-2 py-1' : 'text-xs px-1.5 py-0.5'} bg-white/70 backdrop-blur-sm border-slate-200`}>
-                          +{location.currentUsers.length - (isMobile ? 3 : 2)}
+                      {location.currentUsers.length > (isMobile ? 8 : 6) && (
+                        <Badge variant="outline" className={`${isMobile ? 'text-xs px-2 py-0.5' : 'text-xs px-1.5 py-0.5'} bg-white/70 backdrop-blur-sm border-slate-200`}>
+                          +{location.currentUsers.length - (isMobile ? 8 : 6)}
                         </Badge>
                       )}
                     </div>
                   </div>
                 )}
-
-                {/* Action Hint */}
-                <div className={`${isMobile ? 'mt-4 pt-3' : 'mt-2 pt-2'} border-t border-white/30`}>
-                  <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-slate-500 text-center font-medium`}>
-                    {isCheckedIn ? "Tippen zum Auschecken" : "Tippen zum Einchecken"}
-                  </p>
-                </div>
               </CardContent>
             </Card>
           )
