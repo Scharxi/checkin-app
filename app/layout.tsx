@@ -7,6 +7,18 @@ import { Toaster } from '@/components/ui/toaster'
 export const metadata: Metadata = {
   title: 'Check-In App',
   description: 'Live Check-In System für Teams',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  themeColor: '#6366f1',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Check-In App',
+  },
 }
 
 export default function RootLayout({
@@ -16,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
-      <body>
+      <body className="touch-manipulation tap-highlight-none scroll-smooth-mobile safe-area-padding">
         <QueryProvider>
           <WebSocketProvider>
             {children}
