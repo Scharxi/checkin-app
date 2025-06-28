@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { autoDeleteEmptyTemporaryLocations } from '@/app/api/locations/temporary/route'
 import { z } from 'zod'
 
 const createLocationSchema = z.object({
@@ -11,6 +12,9 @@ const createLocationSchema = z.object({
 
 export const GET = async () => {
   try {
+    // Auto-delete empty temporary locations before fetching
+    await autoDeleteEmptyTemporaryLocations()
+
     const locations = await prisma.location.findMany({
       where: { isActive: true },
       include: {
