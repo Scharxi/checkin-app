@@ -54,6 +54,8 @@ interface ServerToClientEvents {
   'checkin:update': (data: CheckInResponse) => void
   'checkout:update': (data: CheckInResponse) => void
   'locations:update': (data: LocationWithUsers[]) => void
+  'location:created': (data: LocationWithUsers) => void
+  'location:deleted': (data: { id: string; name: string }) => void
   'checkins:initial': (data: CheckInResponse[]) => void
   'locations:initial': (data: LocationWithUsers[]) => void
   'error': (error: { message: string; code?: string }) => void
@@ -125,6 +127,16 @@ export const useWebsockets = () => {
     socket.on('locations:update', (data) => {
       console.log('📍 Locations update received')
       queryClient.setQueryData(['locations'], data)
+    })
+
+    socket.on('location:created', (data) => {
+      console.log('✨ Location created:', data.name)
+      queryClient.invalidateQueries({ queryKey: ['locations'] })
+    })
+
+    socket.on('location:deleted', (data) => {
+      console.log('🗑️ Location deleted:', data.name)
+      queryClient.invalidateQueries({ queryKey: ['locations'] })
     })
 
     // Handle errors

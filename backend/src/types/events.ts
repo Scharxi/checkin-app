@@ -50,6 +50,8 @@ export interface ServerToClientEvents {
   'checkin:update': (data: CheckInResponse) => void
   'checkout:update': (data: CheckInResponse) => void
   'locations:update': (data: LocationWithUsers[]) => void
+  'location:created': (data: LocationWithUsers) => void
+  'location:deleted': (data: { id: string; name: string }) => void
   'checkins:initial': (data: CheckInResponse[]) => void
   'locations:initial': (data: LocationWithUsers[]) => void
   'error': (error: { message: string; code?: string }) => void

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { broadcastUpdate } from '@/app/api/sse/route'
+import { autoDeleteEmptyTemporaryLocations } from '@/app/api/locations/temporary/route'
 import { z } from 'zod'
 
 const checkInSchema = z.object({
@@ -63,8 +63,8 @@ export const POST = async (request: NextRequest) => {
           },
         })
 
-        // Broadcast checkout update
-        await broadcastUpdate('checkout', updatedCheckIn)
+        // Auto-delete empty temporary locations after checkout
+        await autoDeleteEmptyTemporaryLocations()
 
         return NextResponse.json({
           type: 'checkout',
@@ -94,8 +94,8 @@ export const POST = async (request: NextRequest) => {
       },
     })
 
-    // Broadcast checkin update
-    await broadcastUpdate('checkin', newCheckIn)
+    // Auto-delete empty temporary locations after checkin
+    await autoDeleteEmptyTemporaryLocations()
 
     return NextResponse.json({
       type: 'checkin',
@@ -136,8 +136,8 @@ export const DELETE = async (request: NextRequest) => {
       },
     })
 
-    // Broadcast checkout update
-    await broadcastUpdate('checkout', updatedCheckIn)
+    // Auto-delete empty temporary locations after checkout
+    await autoDeleteEmptyTemporaryLocations()
 
     return NextResponse.json({
       type: 'checkout',

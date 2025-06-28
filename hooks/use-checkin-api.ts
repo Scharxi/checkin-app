@@ -25,6 +25,12 @@ export interface Location {
   icon: string
   color: string
   isActive: boolean
+  isTemporary?: boolean
+  createdBy?: string
+  creator?: {
+    id: string
+    name: string
+  }
   createdAt: string
   updatedAt: string
   users: number
@@ -147,6 +153,24 @@ const api = {
       body: JSON.stringify(data),
     })
     if (!response.ok) throw new Error('Failed to create location')
+    return response.json()
+  },
+
+  // Temporary Locations
+  createTemporaryLocation: async (data: {
+    name: string
+    description?: string
+    createdBy: string
+  }): Promise<Location> => {
+    const response = await fetch('/api/locations/temporary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to create temporary location')
+    }
     return response.json()
   },
 
@@ -314,6 +338,31 @@ export const useCreateLocation = () => {
       toast({
         title: 'Fehler beim Erstellen',
         description: 'Die Location konnte nicht erstellt werden.',
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export const useCreateTemporaryLocation = () => {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  return useMutation({
+    mutationFn: api.createTemporaryLocation,
+    onSuccess: (location) => {
+      // Real-time events will handle the UI update automatically
+      // Just show the success message
+      toast({
+        title: 'Temporäre Karte erstellt!',
+        description: `"${location.name}" wurde als temporäre Karte erstellt.`,
+      })
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Fehler beim Erstellen'
+      toast({
+        title: 'Fehler beim Erstellen',
+        description: message,
         variant: 'destructive',
       })
     },
