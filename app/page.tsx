@@ -6,12 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle, RefreshCw, Menu, X, Search, User as UserIcon } from "lucide-react"
+import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle, AlertTriangle, RefreshCw, Menu, X, Search, User as UserIcon } from "lucide-react"
 import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName, useLogout, useWebsocketStatus, userStorage, type Location, type User } from "@/hooks/use-checkin-api"
 import { ConnectionStatus } from "@/components/ui/connection-status"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { CreateTemporaryLocationDialog } from "@/components/create-temporary-location-dialog"
+import { RequestHelpDialog } from "@/components/request-help-dialog"
+import { RequestHelpEnhancedDialog } from "@/components/request-help-enhanced-dialog"
+import { HelpRequestsList } from "@/components/help-requests-list"
+import { HelpNotifications } from "@/components/help-notifications"
+import { NotificationCenter } from "@/components/notification-center"
 
 // Icon mapping
 const iconMap = {
@@ -71,6 +76,25 @@ export default function CheckInApp() {
     
     return results
   }, [searchQuery, locations])
+
+  // Get available users for help requests (excluding current user)
+  const availableUsers = useMemo(() => {
+    const users: Array<{ id: string; name: string; location: Location }> = []
+    
+    locations.forEach(location => {
+      location.currentUsers.forEach(currentUser => {
+        if (currentUser.id !== user?.id) { // Exclude current user
+          users.push({
+            id: currentUser.id,
+            name: currentUser.name,
+            location
+          })
+        }
+      })
+    })
+    
+    return users
+  }, [locations, user?.id])
 
   const handleSearchFocus = () => {
     setShowSearchResults(true)
@@ -386,6 +410,26 @@ export default function CheckInApp() {
                     </Button>
                   </div>
                   <div className="space-y-2">
+                    <NotificationCenter 
+                      currentUserId={user?.id}
+                      className="w-full" 
+                    />
+                    <RequestHelpEnhancedDialog 
+                      user={user}
+                      currentLocation={checkedInLocation ? locations.find(l => l.id === checkedInLocation) || null : null}
+                      availableUsers={availableUsers}
+                      trigger={
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="w-full justify-start"
+                          disabled={!checkedInLocation}
+                        >
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                          Hilfe rufen
+                        </Button>
+                      }
+                    />
                     <Button
                       onClick={handleRefresh}
                       variant="outline"
@@ -421,6 +465,14 @@ export default function CheckInApp() {
                   Eingecheckt seit {formatTime(checkInTime)}
                 </Badge>
               )}
+              <NotificationCenter 
+                currentUserId={user?.id}
+              />
+              <RequestHelpEnhancedDialog 
+                user={user}
+                currentLocation={checkedInLocation ? locations.find(l => l.id === checkedInLocation) || null : null}
+                availableUsers={availableUsers}
+              />
               <Button
                 onClick={handleRefresh}
                 variant="outline"
@@ -669,6 +721,8 @@ export default function CheckInApp() {
             }
           />
         </div>
+
+
       </div>
     </div>
   )
