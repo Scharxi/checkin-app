@@ -15,6 +15,8 @@ model User {
   updatedAt DateTime   @updatedAt
   checkIns  CheckIn[]
   createdLocations Location[] // New relation to track created temporary locations
+  helpRequestsAsRequester HelpRequest[] @relation("HelpRequestRequester") // Als Anfrager
+  helpRequestsAsTarget HelpRequest[] @relation("HelpRequestTarget") // Als Ziel-Person
 
   @@map("users")
 }
@@ -31,6 +33,7 @@ model Location {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   checkIns    CheckIn[]
+  helpRequests HelpRequest[] // New relation to track help requests
 
   // Add relation to User for temporary locations
   creator     User?      @relation(fields: [createdBy], references: [id], onDelete: SetNull)
@@ -53,4 +56,32 @@ model CheckIn {
   @@index([userId])
   @@index([locationId])
   @@index([isActive])
+}
+
+model HelpRequest {
+  id          String   @id @default(cuid())
+  requesterId String
+  locationId  String
+  targetUserId String? // Optionale spezifische Person zur Hilfe
+  message     String?
+  status      HelpRequestStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  requester   User     @relation("HelpRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  targetUser  User?    @relation("HelpRequestTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@map("help_requests")
+  @@index([requesterId])
+  @@index([locationId])
+  @@index([targetUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum HelpRequestStatus {
+  ACTIVE
+  RESOLVED
+  CANCELLED
 } 

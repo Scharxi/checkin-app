@@ -46,6 +46,28 @@ export interface LocationWithUsers {
   }>
 }
 
+export interface HelpRequest {
+  id: string
+  requesterId: string
+  locationId: string
+  message: string | null
+  status: 'ACTIVE' | 'RESOLVED' | 'CANCELLED'
+  createdAt: string
+  updatedAt: string
+  requester: {
+    id: string
+    name: string
+    email: string | null
+  }
+  location: {
+    id: string
+    name: string
+    description: string
+    icon: string
+    color: string
+  }
+}
+
 export interface ServerToClientEvents {
   'checkin:update': (data: CheckInResponse) => void
   'checkout:update': (data: CheckInResponse) => void
@@ -54,6 +76,9 @@ export interface ServerToClientEvents {
   'location:deleted': (data: { id: string; name: string }) => void
   'checkins:initial': (data: CheckInResponse[]) => void
   'locations:initial': (data: LocationWithUsers[]) => void
+  'help:request': (data: HelpRequest) => void
+  'help:update': (data: HelpRequest) => void
+  'help:delete': (data: { id: string; helpRequest: HelpRequest }) => void
   'error': (error: { message: string; code?: string }) => void
 }
 

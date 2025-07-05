@@ -69,9 +69,9 @@ export const CreateTemporaryLocationDialog: React.FC<CreateTemporaryLocationDial
   )
 
   const descriptionContent = (
-    <div className={`${isMobile ? 'text-base' : 'text-sm'} text-muted-foreground`}>
+    <span className={`${isMobile ? 'text-base' : 'text-sm'} text-muted-foreground`}>
       Erstellen Sie eine temporäre Check-in-Karte. Diese wird <strong>automatisch gelöscht</strong>, wenn sich alle Personen wieder auschecken oder nach 5 Minuten ohne Nutzung.
-    </div>
+    </span>
   )
 
   const formContent = (

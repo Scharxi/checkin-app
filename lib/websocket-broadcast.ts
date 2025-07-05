@@ -24,6 +24,28 @@ export interface LocationDeletedData {
   name: string
 }
 
+export interface HelpRequestData {
+  id: string
+  requesterId: string
+  locationId: string
+  message: string | null
+  status: string
+  createdAt: string
+  updatedAt: string
+  requester: {
+    id: string
+    name: string
+    email: string | null
+  }
+  location: {
+    id: string
+    name: string
+    description: string
+    icon: string
+    color: string
+  }
+}
+
 const broadcastToWebSocket = async (endpoint: string, data: any): Promise<void> => {
   try {
     const response = await fetch(`${WEBSOCKET_SERVER_URL}${endpoint}`, {
@@ -49,4 +71,17 @@ export const broadcastLocationCreated = async (location: LocationBroadcastData):
 
 export const broadcastLocationDeleted = async (locationData: LocationDeletedData): Promise<void> => {
   await broadcastToWebSocket('/broadcast/location-deleted', locationData)
+}
+
+export const broadcastHelpRequest = async (helpRequest: HelpRequestData): Promise<void> => {
+  await broadcastToWebSocket('/broadcast/help-request', helpRequest)
+}
+
+export const broadcastHelpRequestUpdate = async (helpRequest: HelpRequestData): Promise<void> => {
+  await broadcastToWebSocket('/broadcast/help-request-update', helpRequest)
+}
+
+// General broadcast function for any event
+export const broadcast = async (eventType: string, data: any): Promise<void> => {
+  await broadcastToWebSocket(`/broadcast/${eventType}`, data)
 } 
