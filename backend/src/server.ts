@@ -166,6 +166,43 @@ app.post('/broadcast/location-deleted', (req, res) => {
   }
 })
 
+// Help request broadcast endpoints
+app.post('/broadcast/help:request', (req, res) => {
+  try {
+    const helpRequest = req.body
+    io.emit('help:request', helpRequest)
+    console.log(`🆘 Broadcasting help request: ${helpRequest.requester.name} needs help at ${helpRequest.location.name}`)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error broadcasting help request:', error)
+    res.status(500).json({ error: 'Failed to broadcast help request' })
+  }
+})
+
+app.post('/broadcast/help:update', (req, res) => {
+  try {
+    const helpRequest = req.body
+    io.emit('help:update', helpRequest)
+    console.log(`🔄 Broadcasting help request update: ${helpRequest.id} status: ${helpRequest.status}`)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error broadcasting help request update:', error)
+    res.status(500).json({ error: 'Failed to broadcast help request update' })
+  }
+})
+
+app.post('/broadcast/help:delete', (req, res) => {
+  try {
+    const data = req.body
+    io.emit('help:delete', data)
+    console.log(`🗑️ Broadcasting help request deletion: ${data.id}`)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error broadcasting help request deletion:', error)
+    res.status(500).json({ error: 'Failed to broadcast help request deletion' })
+  }
+})
+
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Express error:', err)
