@@ -28,6 +28,24 @@ const iconMap = {
   MapPin,
 }
 
+// Color mapping to ensure reliable backgrounds
+const getIconBackgroundClass = (color: string) => {
+  const colorMap: { [key: string]: string } = {
+    'bg-gray-500': 'bg-gray-500',
+    'bg-blue-500': 'bg-blue-500',
+    'bg-cyan-500': 'bg-cyan-500',
+    'bg-orange-500': 'bg-orange-500',
+    'bg-purple-500': 'bg-purple-500',
+    'bg-green-500': 'bg-green-500',
+    'bg-red-500': 'bg-red-500',
+    'bg-yellow-500': 'bg-yellow-500',
+    'bg-indigo-500': 'bg-indigo-500',
+    'bg-pink-500': 'bg-pink-500',
+    'bg-slate-500': 'bg-slate-500',
+  }
+  return colorMap[color] || 'bg-slate-500'
+}
+
 interface HelpNotificationsProps {
   currentUserId?: string
   className?: string
@@ -210,9 +228,9 @@ const NotificationCard = ({ notification, onRemove, getTimeAgo }: NotificationCa
 
   return (
     <Card className="border-l-4 border-l-destructive">
-      <CardContent className="p-3">
+      <CardContent className="px-3 py-2">
         <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-lg ${notification.location.color} text-white flex-shrink-0`}>
+          <div className={`p-1.5 rounded-lg ${getIconBackgroundClass(notification.location.color)} text-white flex-shrink-0`}>
             {(() => {
               const Icon = getIcon(notification.location.icon)
               return <Icon className="h-4 w-4" />

@@ -28,6 +28,24 @@ const iconMap = {
   MapPin,
 }
 
+// Color mapping to ensure reliable backgrounds
+const getIconBackgroundClass = (color: string) => {
+  const colorMap: { [key: string]: string } = {
+    'bg-gray-500': 'bg-gray-500',
+    'bg-blue-500': 'bg-blue-500',
+    'bg-cyan-500': 'bg-cyan-500',
+    'bg-orange-500': 'bg-orange-500',
+    'bg-purple-500': 'bg-purple-500',
+    'bg-green-500': 'bg-green-500',
+    'bg-red-500': 'bg-red-500',
+    'bg-yellow-500': 'bg-yellow-500',
+    'bg-indigo-500': 'bg-indigo-500',
+    'bg-pink-500': 'bg-pink-500',
+    'bg-slate-500': 'bg-slate-500',
+  }
+  return colorMap[color] || 'bg-slate-500'
+}
+
 interface HelpRequestsListProps {
   currentUserId?: string
   className?: string
@@ -162,7 +180,7 @@ export const HelpRequestsList = ({ currentUserId, className = "" }: HelpRequests
                 <div key={request.id}>
                   <div className="p-4 hover:bg-muted/50 transition-colors">
                     <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${request.location.color} text-white flex-shrink-0`}>
+                      <div className={`p-2 rounded-lg ${getIconBackgroundClass(request.location.color)} text-white flex-shrink-0`}>
                         {(() => {
                           const Icon = getIcon(request.location.icon)
                           return <Icon className="h-4 w-4" />
@@ -212,7 +230,7 @@ export const HelpRequestsList = ({ currentUserId, className = "" }: HelpRequests
                                 variant="outline"
                                 onClick={() => handleResolve(request.id)}
                                 disabled={updateHelpRequest.isPending}
-                                className="flex-1 text-xs"
+                                className="flex-1 text-xs bg-green-500 text-white hover:bg-green-600 hover:text-white"
                               >
                                 <CheckCircle2 className="mr-1 h-3 w-3" />
                                 Gelöst
@@ -222,7 +240,7 @@ export const HelpRequestsList = ({ currentUserId, className = "" }: HelpRequests
                                 variant="outline"
                                 onClick={() => handleCancel(request.id)}
                                 disabled={deleteHelpRequest.isPending}
-                                className="flex-1 text-xs"
+                                className="flex-1 text-xs bg-red-500 text-white hover:bg-red-600 hover:text-white"
                               >
                                 <X className="mr-1 h-3 w-3" />
                                 Abbrechen
@@ -247,7 +265,7 @@ export const HelpRequestsList = ({ currentUserId, className = "" }: HelpRequests
                                 variant="outline"
                                 onClick={() => handleResolve(request.id)}
                                 disabled={updateHelpRequest.isPending}
-                                className="text-xs"
+                                className="text-xs bg-green-500 text-white hover:bg-green-600 hover:text-white"
                               >
                                 <CheckCircle2 className="mr-1 h-3 w-3" />
                                 Gelöst

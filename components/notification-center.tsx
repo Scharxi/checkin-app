@@ -32,6 +32,24 @@ const iconMap = {
   MapPin,
 }
 
+// Color mapping to ensure reliable backgrounds
+const getIconBackgroundClass = (color: string) => {
+  const colorMap: { [key: string]: string } = {
+    'bg-gray-500': 'bg-gray-500',
+    'bg-blue-500': 'bg-blue-500',
+    'bg-cyan-500': 'bg-cyan-500',
+    'bg-orange-500': 'bg-orange-500',
+    'bg-purple-500': 'bg-purple-500',
+    'bg-green-500': 'bg-green-500',
+    'bg-red-500': 'bg-red-500',
+    'bg-yellow-500': 'bg-yellow-500',
+    'bg-indigo-500': 'bg-indigo-500',
+    'bg-pink-500': 'bg-pink-500',
+    'bg-slate-500': 'bg-slate-500',
+  }
+  return colorMap[color] || 'bg-slate-500'
+}
+
 interface NotificationCenterProps {
   currentUserId?: string
   className?: string
@@ -345,9 +363,9 @@ const RequestList = ({
       <div className="space-y-0">
         {requests.map((request, index) => (
           <div key={request.id}>
-            <div className="p-3 hover:bg-muted/50 transition-colors">
+            <div className="px-3 py-2 hover:bg-muted/50 transition-colors">
               <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${request.location.color} text-white flex-shrink-0`}>
+                <div className={`p-1.5 rounded-lg ${getIconBackgroundClass(request.location.color)} text-white flex-shrink-0`}>
                   {(() => {
                     const Icon = getIcon(request.location.icon)
                     return <Icon className="h-4 w-4" />
@@ -360,7 +378,7 @@ const RequestList = ({
                       <h4 className="font-medium text-sm truncate">
                         {request.requester.name}
                         {isHistory && request.status === 'RESOLVED' && (
-                          <Badge variant="secondary" className="ml-2 text-xs">
+                          <Badge variant="secondary" className="ml-2 text-xs bg-green-500 text-white hover:bg-green-600 hover:text-white">
                             Gelöst
                           </Badge>
                         )}
@@ -390,7 +408,7 @@ const RequestList = ({
                             variant="outline"
                             onClick={() => onResolve(request.id)}
                             disabled={updatePending}
-                            className="flex-1 text-xs h-7"
+                            className="flex-1 text-xs h-7 bg-green-500 text-white hover:bg-green-600 hover:text-white"
                           >
                             <CheckCircle2 className="mr-1 h-3 w-3" />
                             Gelöst
@@ -400,7 +418,7 @@ const RequestList = ({
                             variant="outline"
                             onClick={() => onCancel(request.id)}
                             disabled={deletePending}
-                            className="flex-1 text-xs h-7"
+                            className="flex-1 text-xs h-7 bg-red-500 text-white hover:bg-red-600 hover:text-white"
                           >
                             <X className="mr-1 h-3 w-3" />
                             Abbrechen
@@ -422,7 +440,7 @@ const RequestList = ({
                             variant="outline"
                             onClick={() => onResolve(request.id)}
                             disabled={updatePending}
-                            className="text-xs h-7"
+                            className="text-xs h-7 bg-green-500 text-white hover:bg-green-600 hover:text-white"
                           >
                             <CheckCircle2 className="mr-1 h-3 w-3" />
                             Gelöst

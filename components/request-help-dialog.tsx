@@ -13,6 +13,24 @@ import { useCreateHelpRequest, type HelpRequest } from "@/hooks/use-help-request
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { Location, User } from "@/hooks/use-checkin-api"
 
+// Color mapping to ensure reliable backgrounds
+const getIconBackgroundClass = (color: string) => {
+  const colorMap: { [key: string]: string } = {
+    'bg-gray-500': 'bg-gray-500',
+    'bg-blue-500': 'bg-blue-500',
+    'bg-cyan-500': 'bg-cyan-500',
+    'bg-orange-500': 'bg-orange-500',
+    'bg-purple-500': 'bg-purple-500',
+    'bg-green-500': 'bg-green-500',
+    'bg-red-500': 'bg-red-500',
+    'bg-yellow-500': 'bg-yellow-500',
+    'bg-indigo-500': 'bg-indigo-500',
+    'bg-pink-500': 'bg-pink-500',
+    'bg-slate-500': 'bg-slate-500',
+  }
+  return colorMap[color] || 'bg-slate-500'
+}
+
 interface RequestHelpDialogProps {
   user: User
   currentLocation: Location | null
@@ -84,7 +102,7 @@ export const RequestHelpDialog = ({ user, currentLocation, trigger }: RequestHel
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${currentLocation.color} text-white`}>
+                  <div className={`p-2 rounded-lg ${getIconBackgroundClass(currentLocation.color)} text-white`}>
                     <Users className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
