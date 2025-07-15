@@ -63,11 +63,15 @@ export default function CheckInApp() {
     
     const query = searchQuery.toLowerCase().trim()
     
-    locations.forEach(location => {
-      location.currentUsers.forEach(currentUser => {
+    locations.forEach((location: Location) => {
+      location.currentUsers.forEach((currentUser: { id: string; name: string; checkedInAt: Date }) => {
         if (currentUser.name.toLowerCase().includes(query)) {
           results.push({
-            user: currentUser,
+            user: {
+              id: currentUser.id,
+              name: currentUser.name,
+              checkedInAt: currentUser.checkedInAt.toString()
+            },
             location
           })
         }
@@ -77,12 +81,25 @@ export default function CheckInApp() {
     return results
   }, [searchQuery, locations])
 
+  // Get current user's location by checking all locations for their presence
+  const currentLocation = useMemo(() => {
+    if (!user || !locations.length) return null
+    
+    for (const location of locations) {
+      const isUserHere = location.currentUsers.some((currentUser: { id: string; name: string; checkedInAt: Date }) => currentUser.id === user.id)
+      if (isUserHere) {
+        return location
+      }
+    }
+    return null
+  }, [user, locations])
+
   // Get available users for help requests (excluding current user)
   const availableUsers = useMemo(() => {
     const users: Array<{ id: string; name: string; location: Location }> = []
     
-    locations.forEach(location => {
-      location.currentUsers.forEach(currentUser => {
+    locations.forEach((location: Location) => {
+      location.currentUsers.forEach((currentUser: { id: string; name: string; checkedInAt: Date }) => {
         if (currentUser.id !== user?.id) { // Exclude current user
           users.push({
             id: currentUser.id,
@@ -117,10 +134,37 @@ export default function CheckInApp() {
     }
   }, [autoLoginUser])
 
+  // Manual localStorage check on mount (fallback for SSR issues)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !user && !autoLoginLoading) {
+      const storedUser = userStorage.getUser()
+      if (storedUser) {
+
+        // Verify user still exists and set directly if auto-login failed
+        fetch(`${process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'}/api/users?name=${encodeURIComponent(storedUser.name)}`)
+          .then(response => {
+            if (response.ok) {
+              return response.json()
+            }
+            throw new Error('User not found')
+          })
+          .then((existingUser) => {
+            setUser(existingUser)
+            userStorage.setUser(existingUser) // Update with latest data
+          })
+          .catch((error) => {
+            console.error('❌ Auto-login failed:', error)
+            userStorage.setUser(null) // Clear invalid user
+          })
+      }
+    }
+  }, [user, autoLoginLoading])
+
   // Update checked in location from user's active check-ins
   useEffect(() => {
     if (user?.checkIns && user.checkIns.length > 0) {
       const activeCheckIn = user.checkIns.find(checkIn => checkIn.isActive)
+      
       if (activeCheckIn) {
         setCheckedInLocation(activeCheckIn.locationId)
         setCheckInTime(new Date(activeCheckIn.checkedInAt))
@@ -128,6 +172,9 @@ export default function CheckInApp() {
         setCheckedInLocation(null)
         setCheckInTime(null)
       }
+    } else {
+      setCheckedInLocation(null)
+      setCheckInTime(null)
     }
   }, [user])
 
@@ -142,7 +189,7 @@ export default function CheckInApp() {
       } catch (error) {
         console.error('Error creating user:', error)
         // Show option to login with existing name
-        if (error instanceof Error && error.message === 'NAME_ALREADY_EXISTS') {
+        if (error instanceof Error && error.message.includes('bereits vergeben')) {
           setShowExistingUserOption(true)
         }
       }
@@ -416,7 +463,7 @@ export default function CheckInApp() {
                     />
                     <RequestHelpEnhancedDialog 
                       user={user}
-                      currentLocation={checkedInLocation ? locations.find(l => l.id === checkedInLocation) || null : null}
+                      currentLocation={currentLocation}
                       availableUsers={availableUsers}
                       trigger={
                         <Button
@@ -470,7 +517,7 @@ export default function CheckInApp() {
               />
               <RequestHelpEnhancedDialog 
                 user={user}
-                currentLocation={checkedInLocation ? locations.find(l => l.id === checkedInLocation) || null : null}
+                currentLocation={currentLocation}
                 availableUsers={availableUsers}
               />
               <Button
@@ -518,7 +565,7 @@ export default function CheckInApp() {
           </div>
         )}
 
-        {checkedInLocation && (
+        {currentLocation && (
           <div className="bg-white/70 backdrop-blur-lg rounded-xl p-6 border border-white/20 shadow-xl">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
@@ -526,7 +573,7 @@ export default function CheckInApp() {
               </div>
               <div>
                 <p className="font-semibold text-slate-800 text-lg">
-                  Du bist eingecheckt bei: {locations.find((l) => l.id === checkedInLocation)?.name}
+                  Du bist eingecheckt bei: {currentLocation?.name}
                 </p>
                 <p className="text-slate-600">
                   Status: Aktiv <Heart className="w-4 h-4 inline text-red-500 ml-1" />
