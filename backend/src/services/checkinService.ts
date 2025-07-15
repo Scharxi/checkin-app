@@ -141,7 +141,7 @@ export class CheckInService {
       orderBy: { name: 'asc' },
     })
 
-    return locations.map(location => ({
+    return locations.map((location: any) => ({
       id: location.id,
       name: location.name,
       description: location.description,
@@ -151,7 +151,7 @@ export class CheckInService {
       createdAt: location.createdAt,
       updatedAt: location.updatedAt,
       users: location.checkIns.length,
-      currentUsers: location.checkIns.map(checkIn => ({
+      currentUsers: location.checkIns.map((checkIn: any) => ({
         id: checkIn.user.id,
         name: checkIn.user.name,
         checkedInAt: checkIn.checkedInAt,
