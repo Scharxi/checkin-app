@@ -1,9 +1,18 @@
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+// Initialize Prisma Client for backend database operations with error handling
+let prisma: PrismaClient
+
+try {
+  prisma = new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']
+  })
+  console.log('✅ Backend Prisma Client initialized successfully')
+} catch (error) {
+  console.error('❌ Backend Prisma Client initialization failed:', error)
+  // Create a mock Prisma client for fallback
+  prisma = {} as PrismaClient
+  throw error
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma 
+export { prisma } 
