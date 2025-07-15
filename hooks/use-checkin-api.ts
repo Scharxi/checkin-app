@@ -1,20 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useToast } from './use-toast'
-import { useWebsockets } from './use-websockets'
+import { toast } from '@/hooks/use-toast'
+import { useState, useEffect } from 'react'
 
-// Re-export websocket connection status
-export const useWebsocketStatus = () => {
-  const { isConnected, error } = useWebsockets()
-  return { isConnected, error }
-}
+// Backend API base URL
+const API_BASE = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
 
 // Types
+export interface CheckIn {
+  id: string
+  userId: string
+  locationId: string
+  checkedInAt: string
+  checkedOutAt: string | null
+  isActive: boolean
+  location: Location
+}
+
 export interface User {
   id: string
   name: string
-  email?: string
-  createdAt: string
-  updatedAt: string
+  email: string | null
+  createdAt: Date
+  updatedAt: Date
   checkIns?: CheckIn[]
 }
 
@@ -26,319 +33,200 @@ export interface Location {
   color: string
   isActive: boolean
   isTemporary?: boolean
-  createdBy?: string
-  creator?: {
-    id: string
-    name: string
-  }
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
   users: number
-  currentUsers: {
+  currentUsers: Array<{
     id: string
     name: string
-    checkedInAt: string
-  }[]
+    checkedInAt: Date
+  }>
 }
 
-export interface CheckIn {
-  id: string
-  userId: string
-  locationId: string
-  checkedInAt: string
-  checkedOutAt?: string
-  isActive: boolean
-  user: User
-  location: Location
-}
-
-// LocalStorage Helper
-const USER_STORAGE_KEY = 'checkin-app-user'
-const USER_NAME_STORAGE_KEY = 'checkin-app-user-name'
-
-export const userStorage = {
-  getUser: (): User | null => {
-    if (typeof window === 'undefined') return null
-    try {
-      const stored = localStorage.getItem(USER_STORAGE_KEY)
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  },
-  
-  setUser: (user: User): void => {
-    if (typeof window === 'undefined') return
-    try {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
-      localStorage.setItem(USER_NAME_STORAGE_KEY, user.name)
-    } catch (error) {
-      console.warn('Could not save user to localStorage:', error)
-    }
-  },
-  
-  getUserName: (): string | null => {
-    if (typeof window === 'undefined') return null
-    try {
-      return localStorage.getItem(USER_NAME_STORAGE_KEY)
-    } catch {
-      return null
-    }
-  },
-  
-  clearUser: (): void => {
-    if (typeof window === 'undefined') return
-    try {
-      localStorage.removeItem(USER_STORAGE_KEY)
-      localStorage.removeItem(USER_NAME_STORAGE_KEY)
-    } catch (error) {
-      console.warn('Could not clear user from localStorage:', error)
-    }
-  }
-}
-
-// API Functions
+// API functions that call backend endpoints
 const api = {
-  // Users
-  getUsers: async (): Promise<User[]> => {
-    const response = await fetch('/api/users')
-    if (!response.ok) throw new Error('Failed to fetch users')
+  getLocations: async () => {
+    const response = await fetch(`${API_BASE}/api/locations`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch locations')
+    }
     return response.json()
   },
 
-  getUserByName: async (name: string): Promise<User> => {
-    const response = await fetch(`/api/users?name=${encodeURIComponent(name)}`)
+  getUsers: async () => {
+    const response = await fetch(`${API_BASE}/api/users`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch users')
+    }
+    return response.json()
+  },
+
+  getUserByName: async (name: string) => {
+    const response = await fetch(`${API_BASE}/api/users?name=${encodeURIComponent(name)}`)
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error('USER_NOT_FOUND')
+        return null
       }
       throw new Error('Failed to fetch user')
     }
     return response.json()
   },
 
-  createUser: async (data: { name: string; email?: string }): Promise<User> => {
-    const response = await fetch('/api/users', {
+  createUser: async (userData: { name: string; email?: string }) => {
+    const response = await fetch(`${API_BASE}/api/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
     })
-    
     if (!response.ok) {
-      const errorData = await response.json()
-      if (response.status === 409) {
-        throw new Error('NAME_ALREADY_EXISTS')
-      }
-      throw new Error(errorData.error || 'Failed to create user')
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to create user')
     }
     return response.json()
   },
 
-  // Locations
-  getLocations: async (): Promise<Location[]> => {
-    const response = await fetch('/api/locations')
-    if (!response.ok) throw new Error('Failed to fetch locations')
-    return response.json()
-  },
-
-  createLocation: async (data: {
-    name: string
-    description: string
-    icon: string
-    color: string
-  }): Promise<Location> => {
-    const response = await fetch('/api/locations', {
+  checkIn: async (data: { userId: string; locationId: string }) => {
+    const response = await fetch(`${API_BASE}/api/checkins`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) throw new Error('Failed to create location')
-    return response.json()
-  },
-
-  // Temporary Locations
-  createTemporaryLocation: async (data: {
-    name: string
-    description?: string
-    createdBy: string
-  }): Promise<Location> => {
-    const response = await fetch('/api/locations/temporary', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
     })
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to create temporary location')
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to check in')
     }
     return response.json()
   },
 
-  // CheckIns - These are now handled via Websockets
-  getCheckIns: async (): Promise<CheckIn[]> => {
-    const response = await fetch('/api/checkins')
-    if (!response.ok) throw new Error('Failed to fetch check-ins')
+  checkOut: async (data: { checkInId: string }) => {
+    const response = await fetch(`${API_BASE}/api/checkins`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to check out')
+    }
+    return response.json()
+  },
+
+  createTemporaryLocation: async (data: { name: string; description?: string; createdBy: string }) => {
+    const response = await fetch(`${API_BASE}/api/locations/temporary`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to create temporary location')
+    }
     return response.json()
   },
 }
 
-// Hooks
+// React Query hooks
+export const useLocations = () => {
+  return useQuery({
+    queryKey: ['locations'],
+    queryFn: api.getLocations,
+    staleTime: 30000,
+  })
+}
+
 export const useUsers = () => {
   return useQuery({
     queryKey: ['users'],
     queryFn: api.getUsers,
+    staleTime: 60000,
   })
 }
 
-export const useAutoLogin = () => {
-  const { toast } = useToast()
-  
+export const useUserByName = (name: string) => {
   return useQuery({
-    queryKey: ['auto-login'],
-    queryFn: async () => {
-      const storedName = userStorage.getUserName()
-      if (!storedName) {
-        return null
-      }
-      
-      try {
-        const user = await api.getUserByName(storedName)
-        userStorage.setUser(user) // Update stored user data
-        return user
-      } catch (error) {
-        if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
-          // User was deleted, clear storage
-          userStorage.clearUser()
-          toast({
-            title: 'Benutzer nicht gefunden',
-            description: 'Ihr Benutzerkonto wurde nicht gefunden. Bitte melden Sie sich erneut an.',
-            variant: 'destructive',
-          })
-          return null
-        }
-        
-        console.error('Auto-login error:', error)
-        // Don't show error for network issues during auto-login
-        return null
-      }
-    },
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: ['user', name],
+    queryFn: () => api.getUserByName(name),
+    enabled: !!name,
+    staleTime: 60000,
   })
 }
 
 export const useCreateUser = () => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
 
   return useMutation({
     mutationFn: api.createUser,
-    onSuccess: (user) => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      userStorage.setUser(user)
-      toast({
-        title: 'Erfolgreich!',
-        description: `Benutzer "${user.name}" wurde erstellt.`,
-      })
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Unbekannter Fehler'
-      
-      if (message === 'NAME_ALREADY_EXISTS') {
-        toast({
-          title: 'Name bereits vergeben',
-          description: 'Dieser Name wird bereits verwendet. Bitte wählen Sie einen anderen.',
-          variant: 'destructive',
-        })
-      } else {
-        toast({
-          title: 'Fehler beim Erstellen',
-          description: 'Der Benutzer konnte nicht erstellt werden.',
-          variant: 'destructive',
-        })
-      }
-    },
-  })
-}
-
-export const useLoginWithName = () => {
-  const { toast } = useToast()
-  
-  return useMutation({
-    mutationFn: async (name: string) => {
-      const user = await api.getUserByName(name)
-      userStorage.setUser(user)
-      return user
-    },
-    onSuccess: (user) => {
-      toast({
-        title: 'Anmeldung erfolgreich!',
-        description: `Willkommen zurück, ${user.name}!`,
-      })
-    },
-    onError: (error) => {
-      if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
-        toast({
-          title: 'Benutzer nicht gefunden',
-          description: 'Dieser Benutzer existiert nicht. Möchten Sie einen neuen Account erstellen?',
-          variant: 'destructive',
-        })
-      } else {
-        toast({
-          title: 'Anmeldung fehlgeschlagen',
-          description: 'Ein unerwarteter Fehler ist aufgetreten.',
-          variant: 'destructive',
-        })
-      }
-    },
-  })
-}
-
-export const useLogout = () => {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { disconnect } = useWebsockets()
-
-  return useMutation({
-    mutationFn: async () => {
-      userStorage.clearUser()
-      disconnect() // Disconnect websocket
-      queryClient.clear() // Clear all cached data
-    },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
       toast({
-        title: 'Abgemeldet',
-        description: 'Sie wurden erfolgreich abgemeldet.',
+        title: 'Benutzer erstellt',
+        description: 'Der neue Benutzer wurde erfolgreich erstellt.',
+      })
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: error.message,
       })
     },
   })
 }
 
-export const useLocations = () => {
-  return useQuery({
-    queryKey: ['locations'],
-    queryFn: api.getLocations,
-  })
-}
-
-export const useCreateLocation = () => {
+export const useCheckIn = () => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
 
   return useMutation({
-    mutationFn: api.createLocation,
-    onSuccess: (location) => {
+    mutationFn: api.checkIn,
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['locations'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      
+      const isCheckout = data.type === 'checkout'
       toast({
-        title: 'Erfolgreich!',
-        description: `Location "${location.name}" wurde erstellt.`,
+        title: isCheckout ? 'Ausgecheckt' : 'Eingecheckt',
+        description: isCheckout 
+          ? `Du bist aus ${data.checkIn.location.name} ausgecheckt.`
+          : `Du bist in ${data.checkIn.location.name} eingecheckt.`,
       })
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
-        title: 'Fehler beim Erstellen',
-        description: 'Die Location konnte nicht erstellt werden.',
         variant: 'destructive',
+        title: 'Fehler beim Check-in',
+        description: error.message,
+      })
+    },
+  })
+}
+
+export const useCheckOut = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.checkOut,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      
+      toast({
+        title: 'Ausgecheckt',
+        description: `Du bist aus ${data.checkIn.location.name} ausgecheckt.`,
+      })
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Fehler beim Check-out',
+        description: error.message,
       })
     },
   })
@@ -346,96 +234,140 @@ export const useCreateLocation = () => {
 
 export const useCreateTemporaryLocation = () => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
 
   return useMutation({
     mutationFn: api.createTemporaryLocation,
-    onSuccess: (location) => {
-      // Real-time events will handle the UI update automatically
-      // Just show the success message
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] })
       toast({
-        title: 'Temporäre Karte erstellt!',
-        description: `"${location.name}" wurde als temporäre Karte erstellt.`,
+        title: 'Temporäre Karte erstellt',
+        description: `"${data.name}" wurde als temporäre Check-in-Karte erstellt.`,
       })
     },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Fehler beim Erstellen'
+    onError: (error: Error) => {
       toast({
-        title: 'Fehler beim Erstellen',
-        description: message,
         variant: 'destructive',
+        title: 'Fehler',
+        description: error.message,
       })
     },
   })
+} 
+
+// User Storage for login persistence
+export const userStorage = {
+  getUser: (): User | null => {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('currentUser')
+    return stored ? JSON.parse(stored) : null
+  },
+  setUser: (user: User | null) => {
+    if (typeof window === 'undefined') return
+    if (user) {
+      localStorage.setItem('currentUser', JSON.stringify(user))
+    } else {
+      localStorage.removeItem('currentUser')
+    }
+  }
 }
 
-export const useCheckIns = () => {
+// Authentication hooks
+export function useLoginWithName() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (name: string): Promise<User> => {
+      const response = await fetch(`${API_BASE}/api/users?name=${encodeURIComponent(name)}`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Benutzer nicht gefunden')
+        }
+        throw new Error('Fehler beim Anmelden')
+      }
+      
+      const user: User = await response.json()
+      userStorage.setUser(user)
+      return user
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    }
+  })
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (): Promise<void> => {
+      userStorage.setUser(null)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    }
+  })
+}
+
+export function useAutoLogin() {
   return useQuery({
-    queryKey: ['checkins'],
-    queryFn: api.getCheckIns,
+    queryKey: ['autoLogin'],
+    queryFn: async (): Promise<User | null> => {
+      const storedUser = userStorage.getUser()
+      if (!storedUser) return null
+      
+      try {
+        // Verify user still exists by name (more reliable than ID lookup)
+        const response = await fetch(`${API_BASE}/api/users?name=${encodeURIComponent(storedUser.name)}`)
+        
+        if (!response.ok) {
+          // User doesn't exist anymore, clear storage
+          userStorage.setUser(null)
+          return null
+        }
+        
+        const existingUser: User = await response.json()
+        
+        // Update stored user with latest data
+        userStorage.setUser(existingUser)
+        return existingUser
+      } catch (error) {
+        console.error('Auto-login failed:', error)
+        userStorage.setUser(null)
+        return null
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    retry: false, // Don't retry on failure
   })
 }
 
-// Updated hooks using Websockets instead of HTTP requests
-export const useCheckIn = () => {
-  const { toast } = useToast()
-  const { checkIn } = useWebsockets()
-
-  return useMutation({
-    mutationFn: async ({ userId, locationId }: { userId: string; locationId: string }) => {
-      const result = await checkIn({ userId, locationId })
-      if (!result.success) {
-        throw new Error(result.error || 'Check-in fehlgeschlagen')
-      }
-      return result.data
-    },
-    onSuccess: (data) => {
-      if (data) {
-        const action = data.isActive ? 'eingecheckt' : 'ausgecheckt'
-        toast({
-          title: `Erfolgreich ${action}!`,
-          description: `Sie sind ${action} bei ${data.location.name}.`,
+export function useWebsocketStatus() {
+  const [isConnected, setIsConnected] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  useEffect(() => {
+    // Simple websocket status check - could connect to actual websocket
+    // For now, just assume connected if backend is reachable
+    const checkConnection = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/users`, {
+          method: 'HEAD',
         })
+        setIsConnected(response.ok)
+        setError(response.ok ? null : 'Backend not reachable')
+      } catch (err) {
+        setIsConnected(false)
+        setError('Connection failed')
       }
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Check-in fehlgeschlagen'
-      toast({
-        title: 'Check-in Fehler',
-        description: message,
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
-export const useCheckOut = () => {
-  const { toast } = useToast()
-  const { checkOut } = useWebsockets()
-
-  return useMutation({
-    mutationFn: async ({ checkInId, userId }: { checkInId?: string; userId?: string }) => {
-      const result = await checkOut({ checkInId, userId })
-      if (!result.success) {
-        throw new Error(result.error || 'Check-out fehlgeschlagen')
-      }
-      return result.data
-    },
-    onSuccess: (data) => {
-      if (data) {
-        toast({
-          title: 'Erfolgreich ausgecheckt!',
-          description: `Sie sind ausgecheckt bei ${data.location.name}.`,
-        })
-      }
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Check-out fehlgeschlagen'
-      toast({
-        title: 'Check-out Fehler',
-        description: message,
-        variant: 'destructive',
-      })
-    },
-  })
+    }
+    
+    checkConnection()
+    const interval = setInterval(checkConnection, 30000) // Check every 30 seconds
+    
+    return () => clearInterval(interval)
+  }, [])
+  
+  return { isConnected, error }
 } 
