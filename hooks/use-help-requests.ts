@@ -1,26 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import { toast } from '@/hooks/use-toast'
+import { useEffect, useState } from 'react'
 
+// Backend API base URL
+const API_BASE = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
+
+// Types
 export interface HelpRequest {
   id: string
   requesterId: string
   locationId: string
-  targetUserId?: string | null
-  message: string | null
+  targetUserId?: string
+  message?: string
   status: 'ACTIVE' | 'RESOLVED' | 'CANCELLED'
   createdAt: string
   updatedAt: string
   requester: {
     id: string
     name: string
-    email: string | null
+    email?: string
   }
   targetUser?: {
     id: string
     name: string
-    email: string | null
-  } | null
+    email?: string
+  }
   location: {
     id: string
     name: string
@@ -30,110 +34,129 @@ export interface HelpRequest {
   }
 }
 
-// Hook für das Abrufen aller aktiven Hilfe-Anfragen
+// API functions that call backend endpoints
+const api = {
+  getHelpRequests: async (): Promise<HelpRequest[]> => {
+    const response = await fetch(`${API_BASE}/api/help-requests`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch help requests')
+    }
+    return response.json()
+  },
+
+  createHelpRequest: async (data: {
+    requesterId: string
+    locationId: string
+    targetUserId?: string
+    message?: string
+  }): Promise<HelpRequest> => {
+    const response = await fetch(`${API_BASE}/api/help-requests`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to create help request')
+    }
+    return response.json()
+  },
+
+  updateHelpRequest: async (id: string, status: 'ACTIVE' | 'RESOLVED' | 'CANCELLED'): Promise<HelpRequest> => {
+    const response = await fetch(`${API_BASE}/api/help-requests/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update help request')
+    }
+    return response.json()
+  },
+
+  deleteHelpRequest: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE}/api/help-requests/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to delete help request')
+    }
+  },
+}
+
+// React Query hooks
 export const useHelpRequests = () => {
-  return useQuery<HelpRequest[]>({
+  return useQuery({
     queryKey: ['help-requests'],
-    queryFn: async () => {
-      const response = await fetch('/api/help-requests')
-      if (!response.ok) {
-        throw new Error('Failed to fetch help requests')
-      }
-      return response.json()
-    },
-    refetchInterval: 30000, // Alle 30 Sekunden aktualisieren
+    queryFn: api.getHelpRequests,
+    staleTime: 30000,
   })
 }
 
-// Hook für das Erstellen einer neuen Hilfe-Anfrage
 export const useCreateHelpRequest = () => {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
-    mutationFn: async (data: { requesterId: string; locationId: string; targetUserId?: string; message?: string }) => {
-      const response = await fetch('/api/help-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-      
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create help request')
-      }
-      
-      return response.json()
-    },
+    mutationFn: api.createHelpRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['help-requests'] })
       toast({
-        title: 'Hilfe-Anfrage erstellt',
-        description: 'Ihre Hilfe-Anfrage wurde erfolgreich versendet.',
+        title: 'Hilfe angefordert',
+        description: 'Ihre Hilfe-Anfrage wurde erfolgreich erstellt.',
       })
     },
     onError: (error: Error) => {
       toast({
+        variant: 'destructive',
         title: 'Fehler',
         description: error.message,
-        variant: 'destructive',
       })
     },
   })
 }
 
-// Hook für das Aktualisieren einer Hilfe-Anfrage
 export const useUpdateHelpRequest = () => {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
-    mutationFn: async (data: { id: string; status: 'ACTIVE' | 'RESOLVED' | 'CANCELLED' }) => {
-      const response = await fetch(`/api/help-requests/${data.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: data.status }),
-      })
+    mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'RESOLVED' | 'CANCELLED' }) =>
+      api.updateHelpRequest(id, status),
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ['help-requests'] })
       
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to update help request')
+      let message = 'Die Hilfe-Anfrage wurde aktualisiert.'
+      if (status === 'RESOLVED') {
+        message = 'Die Hilfe-Anfrage wurde als gelöst markiert.'
+      } else if (status === 'CANCELLED') {
+        message = 'Die Hilfe-Anfrage wurde storniert.'
       }
       
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['help-requests'] })
+      toast({
+        title: 'Status aktualisiert',
+        description: message,
+      })
     },
     onError: (error: Error) => {
       toast({
+        variant: 'destructive',
         title: 'Fehler',
         description: error.message,
-        variant: 'destructive',
       })
     },
   })
 }
 
-// Hook für das Löschen einer Hilfe-Anfrage
 export const useDeleteHelpRequest = () => {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/help-requests/${id}`, {
-        method: 'DELETE',
-      })
-      
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to delete help request')
-      }
-      
-      return response.json()
-    },
+    mutationFn: api.deleteHelpRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['help-requests'] })
       toast({
@@ -143,93 +166,60 @@ export const useDeleteHelpRequest = () => {
     },
     onError: (error: Error) => {
       toast({
+        variant: 'destructive',
         title: 'Fehler',
         description: error.message,
-        variant: 'destructive',
       })
     },
   })
 }
 
-// Hook für WebSocket-Benachrichtigungen
-export const useHelpRequestNotifications = (currentUserId?: string) => {
+// WebSocket notification handler hook
+export const useHelpRequestNotifications = () => {
   const queryClient = useQueryClient()
-  const [notifications, setNotifications] = useState<HelpRequest[]>([])
-  
+  const [notificationCount, setNotificationCount] = useState(0)
+
   useEffect(() => {
-    const handleHelpRequest = (event: CustomEvent<HelpRequest>) => {
-      const helpRequest = event.detail
+    const handleHelpRequest = () => {
+      queryClient.invalidateQueries({ queryKey: ['help-requests'] })
+      setNotificationCount(prev => prev + 1)
       
-      // Invalidate queries to refetch data
+      // Custom event for components to listen to
+      window.dispatchEvent(new CustomEvent('help:request'))
+    }
+
+    const handleHelpUpdate = () => {
       queryClient.invalidateQueries({ queryKey: ['help-requests'] })
       
-      // Don't show notification for own requests
-      if (currentUserId && helpRequest.requesterId === currentUserId) {
-        return
-      }
-      
-      // Add to notifications
-      setNotifications(prev => [helpRequest, ...prev.slice(0, 4)]) // Keep last 5 notifications
-      
-      // Show toast notification
-      toast({
-        title: '🆘 Hilfe benötigt!',
-        description: `${helpRequest.requester.name} braucht Hilfe in ${helpRequest.location.name}`,
-        duration: 8000,
-      })
+      // Custom event for components to listen to
+      window.dispatchEvent(new CustomEvent('help:update'))
     }
-    
-    const handleHelpRequestUpdate = (event: CustomEvent<HelpRequest>) => {
-      const helpRequest = event.detail
-      
+
+    const handleHelpDelete = () => {
       queryClient.invalidateQueries({ queryKey: ['help-requests'] })
       
-      // Don't show update notifications for own requests
-      if (currentUserId && helpRequest.requesterId === currentUserId) {
-        return
-      }
-      
-      if (helpRequest.status === 'RESOLVED') {
-        toast({
-          title: '✅ Hilfe-Anfrage gelöst',
-          description: `Die Hilfe-Anfrage von ${helpRequest.requester.name} wurde gelöst.`,
-        })
-      }
+      // Custom event for components to listen to
+      window.dispatchEvent(new CustomEvent('help:delete'))
     }
-    
-    const handleHelpRequestDelete = (event: CustomEvent<{ id: string; helpRequest: HelpRequest }>) => {
-      const data = event.detail
-      
-      queryClient.invalidateQueries({ queryKey: ['help-requests'] })
-      
-      // Remove from notifications
-      setNotifications(prev => prev.filter(n => n.id !== data.id))
-    }
-    
-    // Listen for custom events dispatched by the WebSocket hook
-    window.addEventListener('help:request', handleHelpRequest as EventListener)
-    window.addEventListener('help:update', handleHelpRequestUpdate as EventListener)
-    window.addEventListener('help:delete', handleHelpRequestDelete as EventListener)
-    
+
+    // Listen for custom events (these will be dispatched by the WebSocket hook)
+    window.addEventListener('help:request', handleHelpRequest)
+    window.addEventListener('help:update', handleHelpUpdate)
+    window.addEventListener('help:delete', handleHelpDelete)
+
     return () => {
-      // Cleanup listeners
-      window.removeEventListener('help:request', handleHelpRequest as EventListener)
-      window.removeEventListener('help:update', handleHelpRequestUpdate as EventListener)
-      window.removeEventListener('help:delete', handleHelpRequestDelete as EventListener)
+      window.removeEventListener('help:request', handleHelpRequest)
+      window.removeEventListener('help:update', handleHelpUpdate)
+      window.removeEventListener('help:delete', handleHelpDelete)
     }
-  }, [queryClient, currentUserId])
-  
+  }, [queryClient])
+
   const clearNotifications = () => {
-    setNotifications([])
+    setNotificationCount(0)
   }
-  
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
-  }
-  
+
   return {
-    notifications,
+    notificationCount,
     clearNotifications,
-    removeNotification,
   }
 } 
