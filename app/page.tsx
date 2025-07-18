@@ -44,8 +44,8 @@ export default function CheckInApp() {
 
   // Hooks
   const { data: locations = [], isLoading: locationsLoading } = useLocations()
-  const createUserMutation = useCreateUser()
-  const loginMutation = useLoginWithName()
+  const createUserMutation = useCreateUser({ silent: true })
+  const loginMutation = useLoginWithName({ silent: true })
   const logoutMutation = useLogout()
   const checkInMutation = useCheckIn()
   const { data: autoLoginUser, isLoading: autoLoginLoading } = useAutoLogin()
@@ -195,14 +195,14 @@ export default function CheckInApp() {
         setUserName("")
         setShowExistingUserOption(false)
       } catch (error) {
-        console.error('Error creating user:', error)
-        // Show option to login with existing name
-        if (error instanceof Error && error.message.includes('bereits vergeben')) {
-          setShowExistingUserOption(true)
-        }
+        console.log('User creation failed, checking if name exists:', error)
+        // Show option to login with existing name instead of auto-trying
+        setShowExistingUserOption(true)
       }
     }
   }
+
+
 
   const handleLoginWithExistingName = async () => {
     if (userName.trim()) {
@@ -212,7 +212,7 @@ export default function CheckInApp() {
         setUserName("")
         setShowExistingUserOption(false)
       } catch (error) {
-        console.error('Error logging in:', error)
+        console.log('Error logging in:', error)
         setShowExistingUserOption(false)
       }
     }
@@ -485,7 +485,7 @@ export default function CheckInApp() {
                   className={`text-center ${isMobile ? 'text-base h-14' : 'text-lg h-12'} border-2 border-indigo-200 focus:border-indigo-500 bg-white/70 backdrop-blur-sm rounded-xl`}
                   required
                 />
-              </div>
+                            </div>
 
               {showExistingUserOption && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -648,23 +648,13 @@ export default function CheckInApp() {
                       {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
                     </Button>
                     <Button
-                      onClick={handleLogout}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                      disabled={logoutMutation.isPending}
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      {logoutMutation.isPending ? 'Benutzer abmelden...' : 'Benutzer abmelden'}
-                    </Button>
-                    <Button
                       onClick={handleAdminLogout}
                       variant="outline"
                       size="sm"
                       className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      Admin abmelden
+                      Abmelden
                     </Button>
                   </div>
                 </div>
@@ -702,23 +692,13 @@ export default function CheckInApp() {
                 {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
               </Button>
               <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="bg-white/70 backdrop-blur-sm border-white/20 hover:bg-white/90"
-                disabled={logoutMutation.isPending}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                {logoutMutation.isPending ? 'Benutzer abmelden...' : 'Benutzer abmelden'}
-              </Button>
-              <Button
                 onClick={handleAdminLogout}
                 variant="outline"
                 size="sm"
                 className="bg-red-50/70 backdrop-blur-sm border-red-200/50 text-red-600 hover:bg-red-100/90"
               >
                 <LogOut className="w-4 h-4 mr-2" />
-                Admin abmelden
+                Abmelden
               </Button>
             </div>
           )}
