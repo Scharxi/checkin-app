@@ -149,7 +149,18 @@ export default function CheckInApp() {
       if (storedUser) {
 
         // Verify user still exists and set directly if auto-login failed
-        fetch(`${process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'}/api/users?name=${encodeURIComponent(storedUser.name)}`)
+        const getApiBaseUrl = () => {
+          const currentHost = window.location.hostname
+          const currentProtocol = window.location.protocol
+          
+          if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+            return 'http://localhost:3001'
+          }
+          
+          return `${currentProtocol}//${currentHost}:3001`
+        }
+        
+        fetch(`${getApiBaseUrl()}/api/users?name=${encodeURIComponent(storedUser.name)}`)
           .then(response => {
             if (response.ok) {
               return response.json()

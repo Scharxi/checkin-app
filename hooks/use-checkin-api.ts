@@ -2,8 +2,29 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/hooks/use-toast'
 import { useState, useEffect } from 'react'
 
-// Backend API base URL
-const API_BASE = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
+// Dynamische API Base URL-Erkennung zur Laufzeit
+const getApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side rendering fallback
+    return 'http://localhost:3001'
+  }
+
+  // Client-side: Automatische URL-Erkennung
+  const currentHost = window.location.hostname
+  const currentProtocol = window.location.protocol
+  
+  // Entwicklung vs Produktion automatisch erkennen
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    return 'http://localhost:3001'
+  }
+  
+  // Produktion/Netzwerk: Gleiche IP/Domain wie Frontend, Port 3001
+  const apiUrl = `${currentProtocol}//${currentHost}:3001`
+  
+  console.log('🔍 API Base URL erkannt:', apiUrl)
+  
+  return apiUrl
+}
 
 // Types
 export interface CheckIn {
@@ -46,7 +67,7 @@ export interface Location {
 // API functions that call backend endpoints
 const api = {
   getLocations: async () => {
-    const response = await fetch(`${API_BASE}/api/locations`)
+    const response = await fetch(`${getApiBaseUrl()}/api/locations`)
     if (!response.ok) {
       throw new Error('Failed to fetch locations')
     }
@@ -54,7 +75,7 @@ const api = {
   },
 
   getUsers: async () => {
-    const response = await fetch(`${API_BASE}/api/users`)
+    const response = await fetch(`${getApiBaseUrl()}/api/users`)
     if (!response.ok) {
       throw new Error('Failed to fetch users')
     }
@@ -62,7 +83,7 @@ const api = {
   },
 
   getUserByName: async (name: string) => {
-    const response = await fetch(`${API_BASE}/api/users?name=${encodeURIComponent(name)}`)
+    const response = await fetch(`${getApiBaseUrl()}/api/users?name=${encodeURIComponent(name)}`)
     if (!response.ok) {
       if (response.status === 404) {
         return null
@@ -73,7 +94,7 @@ const api = {
   },
 
   createUser: async (userData: { name: string; email?: string }) => {
-    const response = await fetch(`${API_BASE}/api/users`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -88,7 +109,7 @@ const api = {
   },
 
   checkIn: async (data: { userId: string; locationId: string }) => {
-    const response = await fetch(`${API_BASE}/api/checkins`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/checkins`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +124,7 @@ const api = {
   },
 
   checkOut: async (data: { checkInId: string }) => {
-    const response = await fetch(`${API_BASE}/api/checkins`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/checkins`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -118,7 +139,7 @@ const api = {
   },
 
   createTemporaryLocation: async (data: { name: string; description?: string; createdBy: string }) => {
-    const response = await fetch(`${API_BASE}/api/locations/temporary`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/locations/temporary`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -281,7 +302,7 @@ export function useLoginWithName(options?: { silent?: boolean }) {
   
   return useMutation({
     mutationFn: async (name: string): Promise<User> => {
-      const response = await fetch(`${API_BASE}/api/users?name=${encodeURIComponent(name)}`)
+      const response = await fetch(`${getApiBaseUrl()}/api/users?name=${encodeURIComponent(name)}`)
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -337,7 +358,7 @@ export function useAutoLogin() {
       
       try {
         // Verify user still exists by name (more reliable than ID lookup)
-        const response = await fetch(`${API_BASE}/api/users?name=${encodeURIComponent(storedUser.name)}`)
+        const response = await fetch(`${getApiBaseUrl()}/api/users?name=${encodeURIComponent(storedUser.name)}`)
         
         if (!response.ok) {
           // User doesn't exist anymore, clear storage
@@ -371,7 +392,7 @@ export function useWebsocketStatus() {
     // For now, just assume connected if backend is reachable
     const checkConnection = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/users`, {
+        const response = await fetch(`${getApiBaseUrl()}/api/users`, {
           method: 'HEAD',
         })
         setIsConnected(response.ok)

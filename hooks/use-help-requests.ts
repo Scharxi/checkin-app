@@ -2,8 +2,29 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/hooks/use-toast'
 import { useEffect, useState } from 'react'
 
-// Backend API base URL
-const API_BASE = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
+// Dynamische API Base URL-Erkennung zur Laufzeit
+const getApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side rendering fallback
+    return 'http://localhost:3001'
+  }
+
+  // Client-side: Automatische URL-Erkennung
+  const currentHost = window.location.hostname
+  const currentProtocol = window.location.protocol
+  
+  // Entwicklung vs Produktion automatisch erkennen
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    return 'http://localhost:3001'
+  }
+  
+  // Produktion/Netzwerk: Gleiche IP/Domain wie Frontend, Port 3001
+  const apiUrl = `${currentProtocol}//${currentHost}:3001`
+  
+  console.log('🔍 Help Requests API Base URL erkannt:', apiUrl)
+  
+  return apiUrl
+}
 
 // Types
 export interface HelpRequest {
@@ -37,7 +58,7 @@ export interface HelpRequest {
 // API functions that call backend endpoints
 const api = {
   getHelpRequests: async (): Promise<HelpRequest[]> => {
-    const response = await fetch(`${API_BASE}/api/help-requests`)
+    const response = await fetch(`${getApiBaseUrl()}/api/help-requests`)
     if (!response.ok) {
       throw new Error('Failed to fetch help requests')
     }
@@ -50,7 +71,7 @@ const api = {
     targetUserId?: string
     message?: string
   }): Promise<HelpRequest> => {
-    const response = await fetch(`${API_BASE}/api/help-requests`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/help-requests`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -65,7 +86,7 @@ const api = {
   },
 
   updateHelpRequest: async (id: string, status: 'ACTIVE' | 'RESOLVED' | 'CANCELLED'): Promise<HelpRequest> => {
-    const response = await fetch(`${API_BASE}/api/help-requests/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/help-requests/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -80,7 +101,7 @@ const api = {
   },
 
   deleteHelpRequest: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/help-requests/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/help-requests/${id}`, {
       method: 'DELETE',
     })
     if (!response.ok) {
