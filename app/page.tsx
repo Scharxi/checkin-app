@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle, AlertTriangle, RefreshCw, Menu, X, Search, User as UserIcon } from "lucide-react"
+import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle, AlertTriangle, RefreshCw, Menu, X, Search, User as UserIcon, Lock } from "lucide-react"
 import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName, useLogout, useWebsocketStatus, userStorage, type Location, type User } from "@/hooks/use-checkin-api"
 import { ConnectionStatus } from "@/components/ui/connection-status"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -17,7 +17,7 @@ import { RequestHelpEnhancedDialog } from "@/components/request-help-enhanced-di
 import { HelpRequestsList } from "@/components/help-requests-list"
 import { HelpNotifications } from "@/components/help-notifications"
 import { NotificationCenter } from "@/components/notification-center"
-import { ProtectedRoute } from "@/components/protected-route"
+import { useAuth } from "@/components/providers/auth-provider"
 
 // Icon mapping
 const iconMap = {
@@ -49,6 +49,13 @@ export default function CheckInApp() {
   const logoutMutation = useLogout()
   const checkInMutation = useCheckIn()
   const { data: autoLoginUser, isLoading: autoLoginLoading } = useAutoLogin()
+  const { isAuthenticated, isLoading: authLoading, login, logout: authLogout } = useAuth()
+  
+  // State for login form
+  const [loginUsername, setLoginUsername] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [loginError, setLoginError] = useState("")
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
   const { isConnected, error: wsError } = useWebsocketStatus()
   const isMobile = useIsMobile()
   
@@ -224,6 +231,44 @@ export default function CheckInApp() {
     }
   }
 
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError("")
+    setIsLoggingIn(true)
+
+    try {
+      const success = await login(loginUsername, loginPassword)
+      
+      if (!success) {
+        setLoginError('Ungültige Anmeldedaten')
+      } else {
+        setLoginUsername("")
+        setLoginPassword("")
+      }
+    } catch (error) {
+      setLoginError('Ein Fehler ist aufgetreten')
+    } finally {
+      setIsLoggingIn(false)
+    }
+  }
+
+  const handleAdminLogout = async () => {
+    try {
+      // First logout the user if any
+      if (user) {
+        await handleLogout()
+      }
+      // Then logout the admin
+      authLogout()
+    } catch (error) {
+      console.error('Error during admin logout:', error)
+      // Even if user logout fails, still logout admin
+      authLogout()
+    }
+  }
+
+
+
   const handleCheckIn = async (locationId: string) => {
     if (!user) return
 
@@ -283,8 +328,8 @@ export default function CheckInApp() {
 
 
 
-  // Loading state for auto-login
-  if (autoLoginLoading) {
+  // Loading state for auth or auto-login
+  if (authLoading || autoLoginLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center">
@@ -298,28 +343,140 @@ export default function CheckInApp() {
     )
   }
 
-  if (!user) {
+  // Show admin login if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-lg shadow-xl p-6">
+            <div className="text-center mb-6">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
+                <Users className="h-6 w-6 text-indigo-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Admin-Anmeldung</h2>
+              <p className="text-gray-600 mt-2">
+                Melden Sie sich an, um auf die Check-In App zuzugreifen
+              </p>
+            </div>
+            
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                  Benutzername
+                </label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    id="username"
+                    type="text"
+                    placeholder="Benutzername eingeben"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                    disabled={isLoggingIn}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Passwort
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="Passwort eingeben"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                    disabled={isLoggingIn}
+                  />
+                </div>
+              </div>
+
+              {loginError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <span className="text-sm text-red-600">{loginError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoggingIn || !loginUsername || !loginPassword}
+              >
+                {isLoggingIn ? 'Wird angemeldet...' : 'Anmelden'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+        )
+  }
+
+  // Show user creation form if authenticated but no user set
+  if (isAuthenticated && !user) {
     return (
       <div className={`min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center ${isMobile ? 'p-6' : 'p-4'}`}>
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 backdrop-blur-3xl"></div>
+        
+        {/* Logout Button - zeigt dass man bereits eingeloggt ist */}
+        <div className="absolute top-4 right-4 z-50">
+          <Button
+            onClick={handleAdminLogout}
+            variant="outline"
+            size="sm"
+            className="bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Abmelden
+          </Button>
+        </div>
+
         <Card className={`w-full ${isMobile ? 'max-w-sm' : 'max-w-md'} relative backdrop-blur-lg bg-white/80 border-white/20 shadow-2xl`}>
           <CardHeader className="text-center">
+            {/* Status-Indikator dass man eingeloggt ist */}
+            <div className="mb-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Admin eingeloggt
+            </div>
+            
             <div className={`mx-auto ${isMobile ? 'mb-6 w-20 h-20' : 'mb-4 w-16 h-16'} bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center`}>
-              <MapPin className={isMobile ? "w-10 h-10 text-white" : "w-8 h-8 text-white"} />
+              <UserIcon className={isMobile ? "w-10 h-10 text-white" : "w-8 h-8 text-white"} />
             </div>
             <CardTitle className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent`}>
-              Check-In App
+              Benutzer erstellen
             </CardTitle>
             <CardDescription className={`text-slate-600 ${isMobile ? 'text-base' : 'text-lg'}`}>
-              Gib deinen Namen ein, um loszulegen
+              Erstelle deinen App-Benutzer, um mit dem Check-In zu beginnen
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Info-Box */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-blue-800 font-medium mb-1">
+                    Benutzer-Erstellung
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Du bist bereits als Administrator eingeloggt. Erstelle jetzt deinen persönlichen App-Benutzer für das Check-In System.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleRegister} className={isMobile ? "space-y-4" : "space-y-6"}>
               <div>
                 <Input
                   type="text"
-                  placeholder="Dein Name"
+                  placeholder="Dein Name für das Check-In"
                   value={userName}
                   onChange={(e) => {
                     setUserName(e.target.value)
@@ -381,8 +538,8 @@ export default function CheckInApp() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-5 h-5" />
-                    {showExistingUserOption ? 'Anderen Namen wählen' : 'Los geht\'s'}
+                    <UserIcon className="w-5 h-5" />
+                    {showExistingUserOption ? 'Anderen Namen wählen' : 'Benutzer erstellen'}
                   </div>
                 )}
               </Button>
@@ -462,22 +619,24 @@ export default function CheckInApp() {
                       currentUserId={user?.id}
                       className="w-full" 
                     />
-                    <RequestHelpEnhancedDialog 
-                      user={user}
-                      currentLocation={currentLocation}
-                      availableUsers={availableUsers}
-                      trigger={
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full justify-start"
-                          disabled={!checkedInLocation}
-                        >
-                          <AlertTriangle className="w-4 h-4 mr-2" />
-                          Hilfe rufen
-                        </Button>
-                      }
-                    />
+                    {user && (
+                      <RequestHelpEnhancedDialog 
+                        user={user}
+                        currentLocation={currentLocation}
+                        availableUsers={availableUsers}
+                        trigger={
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-full justify-start"
+                            disabled={!checkedInLocation}
+                          >
+                            <AlertTriangle className="w-4 h-4 mr-2" />
+                            Hilfe rufen
+                          </Button>
+                        }
+                      />
+                    )}
                     <Button
                       onClick={handleRefresh}
                       variant="outline"
@@ -496,7 +655,16 @@ export default function CheckInApp() {
                       disabled={logoutMutation.isPending}
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      {logoutMutation.isPending ? 'Abmelden...' : 'Abmelden'}
+                      {logoutMutation.isPending ? 'Benutzer abmelden...' : 'Benutzer abmelden'}
+                    </Button>
+                    <Button
+                      onClick={handleAdminLogout}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Admin abmelden
                     </Button>
                   </div>
                 </div>
@@ -516,11 +684,13 @@ export default function CheckInApp() {
               <NotificationCenter 
                 currentUserId={user?.id}
               />
-              <RequestHelpEnhancedDialog 
-                user={user}
-                currentLocation={currentLocation}
-                availableUsers={availableUsers}
-              />
+              {user && (
+                <RequestHelpEnhancedDialog 
+                  user={user}
+                  currentLocation={currentLocation}
+                  availableUsers={availableUsers}
+                />
+              )}
               <Button
                 onClick={handleRefresh}
                 variant="outline"
@@ -539,7 +709,16 @@ export default function CheckInApp() {
                 disabled={logoutMutation.isPending}
               >
                 <LogOut className="w-4 h-4 mr-2" />
-                {logoutMutation.isPending ? 'Abmelden...' : 'Abmelden'}
+                {logoutMutation.isPending ? 'Benutzer abmelden...' : 'Benutzer abmelden'}
+              </Button>
+              <Button
+                onClick={handleAdminLogout}
+                variant="outline"
+                size="sm"
+                className="bg-red-50/70 backdrop-blur-sm border-red-200/50 text-red-600 hover:bg-red-100/90"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Admin abmelden
               </Button>
             </div>
           )}
@@ -722,8 +901,9 @@ export default function CheckInApp() {
           })}
           
           {/* Create Temporary Location Card */}
-          <CreateTemporaryLocationDialog 
-            user={user}
+          {user && (
+            <CreateTemporaryLocationDialog 
+              user={user}
             trigger={
               <Card className={`cursor-pointer transition-all duration-300 ${isMobile ? 'transform active:scale-95' : 'transform hover:scale-105'} backdrop-blur-lg bg-white/80 border-white/20 shadow-xl ${isMobile ? 'active:shadow-2xl' : 'hover:shadow-2xl'} group`}>
                 <CardContent className={isMobile ? "p-4" : "p-3"}>
@@ -768,6 +948,7 @@ export default function CheckInApp() {
               </Card>
             }
           />
+          )}
         </div>
 
 
@@ -776,21 +957,19 @@ export default function CheckInApp() {
   )
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
-        {/* Hintergrund-Dekoration */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
-        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
+      {/* Hintergrund-Dekoration */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
+      <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
 
-        {isMobile ? (
-          <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
-            {mainContent}
-          </PullToRefresh>
-        ) : (
-          mainContent
-        )}
-      </div>
-    </ProtectedRoute>
+      {isMobile ? (
+        <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
+          {mainContent}
+        </PullToRefresh>
+      ) : (
+        mainContent
+      )}
+    </div>
   )
 }
