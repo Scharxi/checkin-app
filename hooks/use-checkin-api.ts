@@ -159,24 +159,28 @@ export const useUserByName = (name: string) => {
   })
 }
 
-export const useCreateUser = () => {
+export const useCreateUser = (options?: { silent?: boolean }) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: api.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast({
-        title: 'Benutzer erstellt',
-        description: 'Der neue Benutzer wurde erfolgreich erstellt.',
-      })
+      if (!options?.silent) {
+        toast({
+          title: 'Benutzer erstellt',
+          description: 'Der neue Benutzer wurde erfolgreich erstellt.',
+        })
+      }
     },
     onError: (error: Error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Fehler',
-        description: error.message,
-      })
+      if (!options?.silent) {
+        toast({
+          variant: 'destructive',
+          title: 'Fehler',
+          description: error.message,
+        })
+      }
     },
   })
 }
@@ -272,7 +276,7 @@ export const userStorage = {
 }
 
 // Authentication hooks
-export function useLoginWithName() {
+export function useLoginWithName(options?: { silent?: boolean }) {
   const queryClient = useQueryClient()
   
   return useMutation({
@@ -292,7 +296,22 @@ export function useLoginWithName() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-    }
+      if (!options?.silent) {
+        toast({
+          title: 'Angemeldet',
+          description: 'Erfolgreich angemeldet.',
+        })
+      }
+    },
+    onError: (error: Error) => {
+      if (!options?.silent) {
+        toast({
+          variant: 'destructive',
+          title: 'Anmeldung fehlgeschlagen',
+          description: error.message,
+        })
+      }
+    },
   })
 }
 
