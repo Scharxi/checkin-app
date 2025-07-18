@@ -12,10 +12,46 @@ dotenv.config()
 const app = express()
 const server = createServer(app)
 
-// CORS configuration
+// CORS configuration - Allow both localhost and network access
 const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000'
+
+// For development: Also allow network IPs dynamically
+const allowedOrigins: (string | RegExp)[] = Array.isArray(corsOrigin) ? corsOrigin : [corsOrigin]
+
+// Add localhost variations
+allowedOrigins.push('http://127.0.0.1:3000')
+
+// Add common network patterns for development
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://192.168.2.85:3000') // Your current network IP
+  allowedOrigins.push(/^http:\/\/192\.168\.\d+\.\d+:3000$/) // Any 192.168.x.x:3000
+  allowedOrigins.push(/^http:\/\/172\.\d+\.\d+\.\d+:3000$/) // Any 172.x.x.x:3000 (Docker networks)
+  allowedOrigins.push(/^http:\/\/10\.\d+\.\d+\.\d+:3000$/) // Any 10.x.x.x:3000
+}
+
 app.use(cors({
-  origin: corsOrigin,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true)
+    
+    // Check if origin is in allowed list
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return origin === allowedOrigin
+      }
+      if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin)
+      }
+      return false
+    })
+    
+    if (isAllowed) {
+      callback(null, true)
+    } else {
+      console.log('🚫 CORS blocked origin:', origin)
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
   credentials: true
 }))
 
@@ -24,7 +60,28 @@ app.use(express.json())
 // Initialize Socket.io with CORS
 const io = new Server(server, {
   cors: {
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true)
+      
+      // Check if origin is in allowed list
+      const isAllowed = allowedOrigins.some(allowedOrigin => {
+        if (typeof allowedOrigin === 'string') {
+          return origin === allowedOrigin
+        }
+        if (allowedOrigin instanceof RegExp) {
+          return allowedOrigin.test(origin)
+        }
+        return false
+      })
+      
+      if (isAllowed) {
+        callback(null, true)
+      } else {
+        console.log('🚫 Socket.io CORS blocked origin:', origin)
+        callback(new Error('Not allowed by CORS'))
+      }
+    },
     credentials: true
   }
 })

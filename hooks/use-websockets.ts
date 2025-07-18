@@ -92,6 +92,31 @@ interface ClientToServerEvents {
   'get:initial-data': (callback: (response: { checkins: CheckInResponse[]; locations: LocationWithUsers[] }) => void) => void
 }
 
+// Dynamische WebSocket-URL-Erkennung zur Laufzeit
+const getWebSocketUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side rendering fallback
+    return 'http://localhost:3001'
+  }
+
+  // Client-side: Automatische URL-Erkennung
+  const currentHost = window.location.hostname
+  const currentProtocol = window.location.protocol
+  
+  // Entwicklung vs Produktion automatisch erkennen
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    return 'http://localhost:3001'
+  }
+  
+  // Produktion/Netzwerk: Gleiche IP/Domain wie Frontend, Port 3001
+  const websocketUrl = `${currentProtocol}//${currentHost}:3001`
+  
+  console.log('🔍 Frontend läuft auf:', `${currentProtocol}//${currentHost}`)
+  console.log('🔌 WebSocket URL erkannt:', websocketUrl)
+  
+  return websocketUrl
+}
+
 export const useWebsockets = () => {
   const queryClient = useQueryClient()
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null)
@@ -99,8 +124,11 @@ export const useWebsockets = () => {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // NEUE DYNAMISCHE URL-ERKENNUNG statt hardcodierte Umgebungsvariable
+    const socketUrl = getWebSocketUrl()
+    
     // Create Socket.io connection
-    const socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001', {
+    const socket = io(socketUrl, {
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,
@@ -113,6 +141,7 @@ export const useWebsockets = () => {
     // Handle connection events
     socket.on('connect', () => {
       console.log('🔌 Websocket connected:', socket.id)
+      console.log('📡 Successful URL:', socketUrl)
       setIsConnected(true)
       setError(null)
 
@@ -131,6 +160,7 @@ export const useWebsockets = () => {
 
     socket.on('connect_error', (error) => {
       console.error('🔌 Websocket connection error:', error)
+      console.error('🚫 Failed URL:', socketUrl)
       const errorMessage = error?.message || 'Verbindung zum Server fehlgeschlagen'
       setError(`Backend nicht erreichbar: ${errorMessage}`)
       setIsConnected(false)
