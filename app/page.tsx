@@ -17,6 +17,7 @@ import { RequestHelpEnhancedDialog } from "@/components/request-help-enhanced-di
 import { HelpRequestsList } from "@/components/help-requests-list"
 import { HelpNotifications } from "@/components/help-notifications"
 import { NotificationCenter } from "@/components/notification-center"
+import { ProtectedRoute } from "@/components/protected-route"
 
 // Icon mapping
 const iconMap = {
@@ -775,19 +776,21 @@ export default function CheckInApp() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
-      {/* Hintergrund-Dekoration */}
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
-      <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
+        {/* Hintergrund-Dekoration */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
 
-      {isMobile ? (
-        <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
-          {mainContent}
-        </PullToRefresh>
-      ) : (
-        mainContent
-      )}
-    </div>
+        {isMobile ? (
+          <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
+            {mainContent}
+          </PullToRefresh>
+        ) : (
+          mainContent
+        )}
+      </div>
+    </ProtectedRoute>
   )
 }
