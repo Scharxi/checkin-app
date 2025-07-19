@@ -116,18 +116,20 @@ const getWebSocketUrl = () => {
   console.log('  - Port:', currentPort)
   console.log('  - Full URL:', window.location.href)
   
-  // Entwicklung: localhost erkennen
+  // FORCE: Für Server immer die richtige IP verwenden
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     console.log('🔌 Development mode detected (localhost)')
     return 'http://localhost:3001'
   }
   
-  // Server-Deployment: IMMER Port 3001 verwenden
-  // Egal welcher Port für Frontend verwendet wird, Backend ist auf 3001
+  // Server-Deployment: FORCE korrekte IP für WebSocket
+  console.log('🔌 Server mode detected - FORCING correct IP')
+  
+  // Verwende immer die aktuelle Host-IP mit Port 3001
   const websocketUrl = `${currentProtocol}//${currentHost}:3001`
   
-  console.log('🔌 Server mode detected')
-  console.log('🔌 WebSocket URL erkannt:', websocketUrl)
+  console.log('🔌 FORCED WebSocket URL:', websocketUrl)
+  console.log('🔌 This should NOT be localhost:3001!')
   
   return websocketUrl
 }

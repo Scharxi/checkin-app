@@ -26,18 +26,20 @@ const getApiBaseUrl = () => {
   console.log('  - Port:', currentPort)
   console.log('  - Full URL:', window.location.href)
   
-  // Entwicklung: localhost erkennen
+  // FORCE: Für Server immer die richtige IP verwenden
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     console.log('🔍 Development mode detected (localhost)')
     return 'http://localhost:3001'
   }
   
-  // Server-Deployment: IMMER Port 3001 verwenden
-  // Egal welcher Port für Frontend verwendet wird, Backend ist auf 3001
+  // Server-Deployment: FORCE korrekte IP für Backend
+  console.log('🔍 Server mode detected - FORCING correct IP')
+  
+  // Verwende immer die aktuelle Host-IP mit Port 3001
   const apiUrl = `${currentProtocol}//${currentHost}:3001`
   
-  console.log('🔍 Server mode detected')
-  console.log('🔍 API Base URL erkannt:', apiUrl)
+  console.log('🔍 FORCED API Base URL:', apiUrl)
+  console.log('🔍 This should NOT be localhost:3001!')
   
   return apiUrl
 }

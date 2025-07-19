@@ -61,8 +61,10 @@ const io = new Server(server, {
 })
 
 console.log('🚀 Websocket server running on port 3001')
-console.log(`📊 CORS enabled for: ${corsOrigin}`)
+console.log(`📊 CORS enabled for: ALL ORIGINS (origin: true)`)
 console.log('🔌 Socket.io ready for connections')
+console.log(`🌐 Environment: ${process.env.NODE_ENV}`)
+console.log(`🔍 Expected frontend origins: http://172.16.3.6:3000, http://localhost:3000`)
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
