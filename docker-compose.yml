@@ -9,7 +9,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_WS_URL=http://localhost:3001
+      # Remove hardcoded URLs to allow dynamic detection
+      # - NEXT_PUBLIC_WS_URL=http://localhost:3001
       - DATABASE_URL=postgresql://checkin_user:checkin_password@postgres:5432/checkin_db
     depends_on:
       - postgres
@@ -28,7 +29,8 @@ services:
       - DATABASE_URL=postgresql://checkin_user:checkin_password@postgres:5432/checkin_db
       - PORT=3001
       - NODE_ENV=production
-      - CORS_ORIGIN=http://localhost:3000
+      # Remove hardcoded CORS to allow dynamic origin detection
+      # - CORS_ORIGIN=http://localhost:3000
     depends_on:
       - postgres
     networks:

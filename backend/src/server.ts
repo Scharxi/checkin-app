@@ -12,21 +12,33 @@ dotenv.config()
 const app = express()
 const server = createServer(app)
 
-// CORS configuration - Allow both localhost and network access
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000'
+// CORS configuration - Flexible for both development and production
+const corsOrigin = process.env.CORS_ORIGIN
 
-// For development: Also allow network IPs dynamically
-const allowedOrigins: (string | RegExp)[] = Array.isArray(corsOrigin) ? corsOrigin : [corsOrigin]
+const allowedOrigins: (string | RegExp)[] = []
 
-// Add localhost variations
-allowedOrigins.push('http://127.0.0.1:3000')
-
-// Add common network patterns for development
-if (process.env.NODE_ENV !== 'production') {
-  allowedOrigins.push('http://192.168.2.85:3000') // Your current network IP
-  allowedOrigins.push(/^http:\/\/192\.168\.\d+\.\d+:3000$/) // Any 192.168.x.x:3000
-  allowedOrigins.push(/^http:\/\/172\.\d+\.\d+\.\d+:3000$/) // Any 172.x.x.x:3000 (Docker networks)
-  allowedOrigins.push(/^http:\/\/10\.\d+\.\d+\.\d+:3000$/) // Any 10.x.x.x:3000
+// If CORS_ORIGIN is explicitly set, use it
+if (corsOrigin) {
+  if (Array.isArray(corsOrigin)) {
+    allowedOrigins.push(...corsOrigin)
+  } else {
+    allowedOrigins.push(corsOrigin)
+  }
+} else {
+  // Auto-detect allowed origins based on environment
+  if (process.env.NODE_ENV === 'production') {
+    // Production: Allow any origin on port 3000 (for server deployment)
+    allowedOrigins.push(/^https?:\/\/[^\/]+:3000$/) // Any domain/IP on port 3000
+    allowedOrigins.push(/^https?:\/\/[^\/]+$/) // Any domain/IP (for reverse proxy setups)
+  } else {
+    // Development: Allow localhost and local network IPs
+    allowedOrigins.push('http://localhost:3000')
+    allowedOrigins.push('http://127.0.0.1:3000')
+    allowedOrigins.push('http://192.168.2.85:3000') // Your current network IP
+    allowedOrigins.push(/^http:\/\/192\.168\.\d+\.\d+:3000$/) // Any 192.168.x.x:3000
+    allowedOrigins.push(/^http:\/\/172\.\d+\.\d+\.\d+:3000$/) // Any 172.x.x.x:3000 (Docker networks)
+    allowedOrigins.push(/^http:\/\/10\.\d+\.\d+\.\d+:3000$/) // Any 10.x.x.x:3000
+  }
 }
 
 app.use(cors({

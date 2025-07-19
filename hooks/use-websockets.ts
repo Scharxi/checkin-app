@@ -94,6 +94,11 @@ interface ClientToServerEvents {
 
 // Dynamische WebSocket-URL-Erkennung zur Laufzeit
 const getWebSocketUrl = () => {
+  // If environment variable is set, use it (for custom configurations)
+  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_WS_URL) {
+    return process.env.NEXT_PUBLIC_WS_URL
+  }
+
   if (typeof window === 'undefined') {
     // Server-side rendering fallback
     return 'http://localhost:3001'
@@ -102,16 +107,27 @@ const getWebSocketUrl = () => {
   // Client-side: Automatische URL-Erkennung
   const currentHost = window.location.hostname
   const currentProtocol = window.location.protocol
+  const currentPort = window.location.port
   
   // Entwicklung vs Produktion automatisch erkennen
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     return 'http://localhost:3001'
   }
   
-  // Produktion/Netzwerk: Gleiche IP/Domain wie Frontend, Port 3001
-  const websocketUrl = `${currentProtocol}//${currentHost}:3001`
+  // Server-Deployment: Verwende gleiche Domain/IP wie Frontend, Port 3001
+  // Für Server-Deployment ist das Frontend normalerweise auf Port 3000 und Backend auf 3001
+  let websocketUrl: string
   
-  console.log('🔍 Frontend läuft auf:', `${currentProtocol}//${currentHost}`)
+  if (currentPort && currentPort !== '80' && currentPort !== '443') {
+    // Port ist explizit gesetzt - verwende gleiche Domain mit Port 3001
+    websocketUrl = `${currentProtocol}//${currentHost}:3001`
+  } else {
+    // Standard-Ports (80/443) oder kein Port - wahrscheinlich Reverse Proxy
+    // Versuche erst Port 3001, dann ohne Port (für Reverse Proxy setups)
+    websocketUrl = `${currentProtocol}//${currentHost}:3001`
+  }
+  
+  console.log('🔍 Frontend läuft auf:', `${currentProtocol}//${currentHost}${currentPort ? ':' + currentPort : ''}`)
   console.log('🔌 WebSocket URL erkannt:', websocketUrl)
   
   return websocketUrl

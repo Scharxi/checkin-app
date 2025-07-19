@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react'
 
 // Dynamische API Base URL-Erkennung zur Laufzeit
 const getApiBaseUrl = () => {
+  // If environment variable is set, use it (for custom configurations)
+  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL
+  }
+
   if (typeof window === 'undefined') {
     // Server-side rendering fallback
     return 'http://localhost:3001'
@@ -12,15 +17,26 @@ const getApiBaseUrl = () => {
   // Client-side: Automatische URL-Erkennung
   const currentHost = window.location.hostname
   const currentProtocol = window.location.protocol
+  const currentPort = window.location.port
   
   // Entwicklung vs Produktion automatisch erkennen
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     return 'http://localhost:3001'
   }
   
-  // Produktion/Netzwerk: Gleiche IP/Domain wie Frontend, Port 3001
-  const apiUrl = `${currentProtocol}//${currentHost}:3001`
+  // Server-Deployment: Verwende gleiche Domain/IP wie Frontend, Port 3001
+  let apiUrl: string
   
+  if (currentPort && currentPort !== '80' && currentPort !== '443') {
+    // Port ist explizit gesetzt - verwende gleiche Domain mit Port 3001
+    apiUrl = `${currentProtocol}//${currentHost}:3001`
+  } else {
+    // Standard-Ports (80/443) oder kein Port - wahrscheinlich Reverse Proxy
+    // Versuche erst Port 3001, dann ohne Port (für Reverse Proxy setups)
+    apiUrl = `${currentProtocol}//${currentHost}:3001`
+  }
+  
+  console.log('🔍 Frontend läuft auf:', `${currentProtocol}//${currentHost}${currentPort ? ':' + currentPort : ''}`)
   console.log('🔍 API Base URL erkannt:', apiUrl)
   
   return apiUrl
