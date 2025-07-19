@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 const getApiBaseUrl = () => {
   // If environment variable is set, use it (for custom configurations)
   if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) {
+    console.log('🔍 Using environment API URL:', process.env.NEXT_PUBLIC_API_URL)
     return process.env.NEXT_PUBLIC_API_URL
   }
 
@@ -19,24 +20,23 @@ const getApiBaseUrl = () => {
   const currentProtocol = window.location.protocol
   const currentPort = window.location.port
   
-  // Entwicklung vs Produktion automatisch erkennen
+  console.log('🔍 Frontend-Details:')
+  console.log('  - Hostname:', currentHost)
+  console.log('  - Protocol:', currentProtocol)
+  console.log('  - Port:', currentPort)
+  console.log('  - Full URL:', window.location.href)
+  
+  // Entwicklung: localhost erkennen
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    console.log('🔍 Development mode detected (localhost)')
     return 'http://localhost:3001'
   }
   
-  // Server-Deployment: Verwende gleiche Domain/IP wie Frontend, Port 3001
-  let apiUrl: string
+  // Server-Deployment: IMMER Port 3001 verwenden
+  // Egal welcher Port für Frontend verwendet wird, Backend ist auf 3001
+  const apiUrl = `${currentProtocol}//${currentHost}:3001`
   
-  if (currentPort && currentPort !== '80' && currentPort !== '443') {
-    // Port ist explizit gesetzt - verwende gleiche Domain mit Port 3001
-    apiUrl = `${currentProtocol}//${currentHost}:3001`
-  } else {
-    // Standard-Ports (80/443) oder kein Port - wahrscheinlich Reverse Proxy
-    // Versuche erst Port 3001, dann ohne Port (für Reverse Proxy setups)
-    apiUrl = `${currentProtocol}//${currentHost}:3001`
-  }
-  
-  console.log('🔍 Frontend läuft auf:', `${currentProtocol}//${currentHost}${currentPort ? ':' + currentPort : ''}`)
+  console.log('🔍 Server mode detected')
   console.log('🔍 API Base URL erkannt:', apiUrl)
   
   return apiUrl

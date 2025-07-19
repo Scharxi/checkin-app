@@ -96,6 +96,7 @@ interface ClientToServerEvents {
 const getWebSocketUrl = () => {
   // If environment variable is set, use it (for custom configurations)
   if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_WS_URL) {
+    console.log('🔌 Using environment WebSocket URL:', process.env.NEXT_PUBLIC_WS_URL)
     return process.env.NEXT_PUBLIC_WS_URL
   }
 
@@ -109,25 +110,23 @@ const getWebSocketUrl = () => {
   const currentProtocol = window.location.protocol
   const currentPort = window.location.port
   
-  // Entwicklung vs Produktion automatisch erkennen
+  console.log('🔌 WebSocket Frontend-Details:')
+  console.log('  - Hostname:', currentHost)
+  console.log('  - Protocol:', currentProtocol)
+  console.log('  - Port:', currentPort)
+  console.log('  - Full URL:', window.location.href)
+  
+  // Entwicklung: localhost erkennen
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    console.log('🔌 Development mode detected (localhost)')
     return 'http://localhost:3001'
   }
   
-  // Server-Deployment: Verwende gleiche Domain/IP wie Frontend, Port 3001
-  // Für Server-Deployment ist das Frontend normalerweise auf Port 3000 und Backend auf 3001
-  let websocketUrl: string
+  // Server-Deployment: IMMER Port 3001 verwenden
+  // Egal welcher Port für Frontend verwendet wird, Backend ist auf 3001
+  const websocketUrl = `${currentProtocol}//${currentHost}:3001`
   
-  if (currentPort && currentPort !== '80' && currentPort !== '443') {
-    // Port ist explizit gesetzt - verwende gleiche Domain mit Port 3001
-    websocketUrl = `${currentProtocol}//${currentHost}:3001`
-  } else {
-    // Standard-Ports (80/443) oder kein Port - wahrscheinlich Reverse Proxy
-    // Versuche erst Port 3001, dann ohne Port (für Reverse Proxy setups)
-    websocketUrl = `${currentProtocol}//${currentHost}:3001`
-  }
-  
-  console.log('🔍 Frontend läuft auf:', `${currentProtocol}//${currentHost}${currentPort ? ':' + currentPort : ''}`)
+  console.log('🔌 Server mode detected')
   console.log('🔌 WebSocket URL erkannt:', websocketUrl)
   
   return websocketUrl

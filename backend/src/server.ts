@@ -41,60 +41,22 @@ if (corsOrigin) {
   }
 }
 
+// TEMPORÄR: Komplett offene CORS für Server-Deployment
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true)
-    
-    // Check if origin is in allowed list
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (typeof allowedOrigin === 'string') {
-        return origin === allowedOrigin
-      }
-      if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin)
-      }
-      return false
-    })
-    
-    if (isAllowed) {
-      callback(null, true)
-    } else {
-      console.log('🚫 CORS blocked origin:', origin)
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
-  credentials: true
+  origin: true, // Erlaubt alle Origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }))
 
 app.use(express.json())
 
-// Initialize Socket.io with CORS
+// Initialize Socket.io with open CORS
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, etc.)
-      if (!origin) return callback(null, true)
-      
-      // Check if origin is in allowed list
-      const isAllowed = allowedOrigins.some(allowedOrigin => {
-        if (typeof allowedOrigin === 'string') {
-          return origin === allowedOrigin
-        }
-        if (allowedOrigin instanceof RegExp) {
-          return allowedOrigin.test(origin)
-        }
-        return false
-      })
-      
-      if (isAllowed) {
-        callback(null, true)
-      } else {
-        console.log('🚫 Socket.io CORS blocked origin:', origin)
-        callback(new Error('Not allowed by CORS'))
-      }
-    },
-    credentials: true
+    origin: true, // Erlaubt alle Origins
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
   }
 })
 
