@@ -41,18 +41,10 @@ if (corsOrigin) {
   }
 }
 
-// Enhanced CORS for Express - Allow all origins for now to solve the immediate issue
+// Enhanced CORS for Express - Allow all origins
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true)
-    
-    console.log(`🔍 CORS check for origin: ${origin}`)
-    
-    // Allow all origins temporarily to fix the immediate issue
-    callback(null, true)
-  },
-  credentials: true,
+  origin: '*',  // Allow all origins for now - simpler and more reliable
+  credentials: false,  // Set to false when using wildcard origin
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   optionsSuccessStatus: 200
@@ -66,16 +58,8 @@ app.use(express.json())
 // Enhanced Socket.io configuration with better CORS handling
 const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
-      // Allow requests with no origin
-      if (!origin) return callback(null, true)
-      
-      console.log(`🔌 Socket.IO CORS check for origin: ${origin}`)
-      
-      // Allow all origins temporarily to fix the immediate issue
-      callback(null, true)
-    },
-    credentials: true,
+    origin: '*',  // Allow all origins - simpler and more reliable
+    credentials: false,  // Set to false when using wildcard origin
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   },
@@ -87,16 +71,16 @@ const io = new Server(server, {
 })
 
 console.log('🚀 Websocket server running on port 3001')
-console.log(`📊 CORS enabled for: ALL ORIGINS (enhanced configuration)`)
+console.log(`📊 CORS enabled for: ALL ORIGINS (*)`)
 console.log('🔌 Socket.io ready for connections')
 console.log(`🌐 Environment: ${process.env.NODE_ENV}`)
-console.log(`🔍 Expected frontend origins: http://172.16.3.6:3000, http://localhost:3000`)
+console.log(`🔍 Frontend should work from any origin`)
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`👤 Client connected: ${socket.id}`)
   console.log(`📡 Connection from: ${socket.handshake.headers.origin || 'unknown origin'}`)
-  console.log(`🌐 Headers:`, socket.handshake.headers)
+  console.log(`✅ CORS working correctly!`)
 
   socket.on('disconnect', () => {
     console.log(`👋 Client disconnected: ${socket.id}`)
