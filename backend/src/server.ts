@@ -12,7 +12,7 @@ dotenv.config()
 const app = express()
 const server = createServer(app)
 
-// CORS configuration - Flexible for both development and production
+// Enhanced CORS configuration for better cross-origin support
 const corsOrigin = process.env.CORS_ORIGIN
 
 const allowedOrigins: (string | RegExp)[] = []
@@ -41,27 +41,53 @@ if (corsOrigin) {
   }
 }
 
-// TEMPORÄR: Komplett offene CORS für Server-Deployment
+// Enhanced CORS for Express - Allow all origins for now to solve the immediate issue
 app.use(cors({
-  origin: true, // Erlaubt alle Origins
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true)
+    
+    console.log(`🔍 CORS check for origin: ${origin}`)
+    
+    // Allow all origins temporarily to fix the immediate issue
+    callback(null, true)
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  optionsSuccessStatus: 200
 }))
+
+// Add explicit preflight handling
+app.options('*', cors())
 
 app.use(express.json())
 
-// Initialize Socket.io with open CORS
+// Enhanced Socket.io configuration with better CORS handling
 const io = new Server(server, {
   cors: {
-    origin: true, // Erlaubt alle Origins
+    origin: function (origin, callback) {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true)
+      
+      console.log(`🔌 Socket.IO CORS check for origin: ${origin}`)
+      
+      // Allow all origins temporarily to fix the immediate issue
+      callback(null, true)
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-  }
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  },
+  // Additional Socket.IO configuration for better connectivity
+  allowEIO3: true,
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
 })
 
 console.log('🚀 Websocket server running on port 3001')
-console.log(`📊 CORS enabled for: ALL ORIGINS (origin: true)`)
+console.log(`📊 CORS enabled for: ALL ORIGINS (enhanced configuration)`)
 console.log('🔌 Socket.io ready for connections')
 console.log(`🌐 Environment: ${process.env.NODE_ENV}`)
 console.log(`🔍 Expected frontend origins: http://172.16.3.6:3000, http://localhost:3000`)
@@ -69,10 +95,25 @@ console.log(`🔍 Expected frontend origins: http://172.16.3.6:3000, http://loca
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`👤 Client connected: ${socket.id}`)
+  console.log(`📡 Connection from: ${socket.handshake.headers.origin || 'unknown origin'}`)
+  console.log(`🌐 Headers:`, socket.handshake.headers)
 
   socket.on('disconnect', () => {
     console.log(`👋 Client disconnected: ${socket.id}`)
   })
+
+  // Handle connection errors
+  socket.on('error', (error) => {
+    console.error(`❌ Socket error for ${socket.id}:`, error)
+  })
+})
+
+// Handle Socket.IO middleware errors
+io.engine.on('connection_error', (err) => {
+  console.error('🚨 Socket.IO connection error:', err.message)
+  console.error('  - Request:', err.req?.url)
+  console.error('  - Code:', err.code)
+  console.error('  - Context:', err.context)
 })
 
 // Validation schemas
@@ -759,8 +800,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// Start server
-const port = process.env.PORT || 3001
-server.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`)
+// Start server - Bind to all interfaces to allow external connections
+const port = Number(process.env.PORT) || 3001
+const host = process.env.HOST || '0.0.0.0' // Bind to all interfaces, not just localhost
+
+server.listen(port, host, () => {
+  console.log(`🚀 Server running on ${host}:${port}`)
+  console.log(`📡 Server accessible at:`)
+  console.log(`   - Local: http://localhost:${port}`)
+  console.log(`   - Network: http://172.16.3.6:${port}`)
+  console.log(`   - All interfaces: http://0.0.0.0:${port}`)
+  console.log(`🔌 Socket.IO ready for connections from any origin`)
 }) 

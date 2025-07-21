@@ -92,7 +92,7 @@ interface ClientToServerEvents {
   'get:initial-data': (callback: (response: { checkins: CheckInResponse[]; locations: LocationWithUsers[] }) => void) => void
 }
 
-// Dynamische WebSocket-URL-Erkennung zur Laufzeit
+// Enhanced WebSocket URL detection with better fallback logic
 const getWebSocketUrl = () => {
   // If environment variable is set, use it (for custom configurations)
   if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_WS_URL) {
@@ -105,7 +105,7 @@ const getWebSocketUrl = () => {
     return 'http://localhost:3001'
   }
 
-  // Client-side: Automatische URL-Erkennung
+  // Client-side: Enhanced URL detection
   const currentHost = window.location.hostname
   const currentProtocol = window.location.protocol
   const currentPort = window.location.port
@@ -124,9 +124,10 @@ const getWebSocketUrl = () => {
     return 'http://localhost:3001'
   }
   
-  // For Docker or server deployment: Use server's IP with port 3001
+  // For Docker or server deployment: Use current host with port 3001
   let targetHost = currentHost
   
+  // If we're on localhost but not in real development, we might be in Docker
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     console.log('🔌 Docker/Server mode detected - using server IP for backend')
     targetHost = '172.16.3.6' // Your server IP - should be set via env var
@@ -145,18 +146,33 @@ export const useWebsockets = () => {
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const reconnectAttempts = useRef(0)
+  const maxReconnectAttempts = 10
 
   useEffect(() => {
-    // NEUE DYNAMISCHE URL-ERKENNUNG statt hardcodierte Umgebungsvariable
     const socketUrl = getWebSocketUrl()
     
-    // Create Socket.io connection
+    console.log(`🔌 Initializing WebSocket connection to: ${socketUrl}`)
+    
+    // Create Socket.io connection with enhanced configuration
     const socket = io(socketUrl, {
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: maxReconnectAttempts,
+      timeout: 20000,
+      // Force polling transport initially to avoid WebSocket upgrade issues
+      transports: ['polling', 'websocket'],
+      // Additional options for better cross-origin support
+      forceNew: false,
+      upgrade: true,
+      // Add explicit headers for CORS
+      extraHeaders: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
+      },
     })
 
     socketRef.current = socket
@@ -165,8 +181,10 @@ export const useWebsockets = () => {
     socket.on('connect', () => {
       console.log('🔌 Websocket connected:', socket.id)
       console.log('📡 Successful URL:', socketUrl)
+      console.log('🚀 Transport:', socket.io.engine.transport.name)
       setIsConnected(true)
       setError(null)
+      reconnectAttempts.current = 0
 
       // Request initial data
       socket.emit('get:initial-data', (response: { checkins: CheckInResponse[]; locations: LocationWithUsers[] }) => {
@@ -179,14 +197,46 @@ export const useWebsockets = () => {
     socket.on('disconnect', (reason) => {
       console.log('🔌 Websocket disconnected:', reason)
       setIsConnected(false)
+      
+      if (reason === 'io server disconnect') {
+        // Server disconnected us, try to reconnect
+        socket.connect()
+      }
     })
 
     socket.on('connect_error', (error) => {
       console.error('🔌 Websocket connection error:', error)
       console.error('🚫 Failed URL:', socketUrl)
-      const errorMessage = error?.message || 'Verbindung zum Server fehlgeschlagen'
-      setError(`Backend nicht erreichbar: ${errorMessage}`)
+      console.error('🔍 Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      })
+      
+      reconnectAttempts.current++
+      
+      let errorMessage = 'Backend nicht erreichbar'
+      
+      // Provide more specific error messages
+      if (error.message.includes('CORS')) {
+        errorMessage = 'CORS-Fehler: Server blockiert Verbindung'
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Zeitüberschreitung: Server antwortet nicht'
+      } else if (error.message.includes('refused')) {
+        errorMessage = 'Verbindung verweigert: Server läuft nicht'
+      } else if (reconnectAttempts.current >= maxReconnectAttempts) {
+        errorMessage = `Verbindung fehlgeschlagen nach ${maxReconnectAttempts} Versuchen`
+      } else {
+        errorMessage = `Verbindungsfehler (Versuch ${reconnectAttempts.current}/${maxReconnectAttempts}): ${error.message}`
+      }
+      
+      setError(errorMessage)
       setIsConnected(false)
+    })
+
+    // Engine error handling
+    socket.io.on('error', (error: any) => {
+      console.error('🚨 Socket.IO engine error:', error)
     })
 
     // Handle check-in/check-out updates
@@ -252,6 +302,7 @@ export const useWebsockets = () => {
     // Cleanup on unmount
     return () => {
       if (socketRef.current) {
+        console.log('🔌 Cleaning up WebSocket connection')
         socketRef.current.disconnect()
         socketRef.current = null
       }
