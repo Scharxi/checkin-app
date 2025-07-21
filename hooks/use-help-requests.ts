@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react'
 
 // Dynamische API Base URL-Erkennung zur Laufzeit
 const getApiBaseUrl = () => {
+  // If environment variable is set, use it (for custom configurations)
+  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) {
+    console.log('🔍 Help Requests: Using environment API URL:', process.env.NEXT_PUBLIC_API_URL)
+    return process.env.NEXT_PUBLIC_API_URL
+  }
+
   if (typeof window === 'undefined') {
     // Server-side rendering fallback
     return 'http://localhost:3001'
@@ -12,16 +18,27 @@ const getApiBaseUrl = () => {
   // Client-side: Automatische URL-Erkennung
   const currentHost = window.location.hostname
   const currentProtocol = window.location.protocol
+  const currentPort = window.location.port
   
-  // Entwicklung vs Produktion automatisch erkennen
-  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+  // Check if we're in a real development environment (not Docker)
+  const isRealDevelopment = currentHost === 'localhost' && currentPort === '3000'
+  
+  if (isRealDevelopment) {
+    console.log('🔍 Help Requests: Real development mode detected (localhost:3000)')
     return 'http://localhost:3001'
   }
   
-  // Produktion/Netzwerk: Gleiche IP/Domain wie Frontend, Port 3001
-  const apiUrl = `${currentProtocol}//${currentHost}:3001`
+  // For Docker or server deployment: Use server's IP with port 3001
+  let targetHost = currentHost
   
-  console.log('🔍 Help Requests API Base URL erkannt:', apiUrl)
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    console.log('🔍 Help Requests: Docker/Server mode detected - using server IP for backend')
+    targetHost = '172.16.3.6' // Your server IP - should be set via env var
+  }
+  
+  const apiUrl = `${currentProtocol}//${targetHost}:3001`
+  
+  console.log('🔍 Help Requests API Base URL:', apiUrl)
   
   return apiUrl
 }

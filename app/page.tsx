@@ -150,14 +150,29 @@ export default function CheckInApp() {
 
         // Verify user still exists and set directly if auto-login failed
         const getApiBaseUrl = () => {
+          // Check for environment variable first
+          if (process.env.NEXT_PUBLIC_API_URL) {
+            return process.env.NEXT_PUBLIC_API_URL
+          }
+          
           const currentHost = window.location.hostname
           const currentProtocol = window.location.protocol
+          const currentPort = window.location.port
           
-          if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+          // Check if we're in real development mode
+          const isRealDevelopment = currentHost === 'localhost' && currentPort === '3000'
+          
+          if (isRealDevelopment) {
             return 'http://localhost:3001'
           }
           
-          return `${currentProtocol}//${currentHost}:3001`
+          // For Docker/server deployment
+          let targetHost = currentHost
+          if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+            targetHost = '172.16.3.6' // Your server IP
+          }
+          
+          return `${currentProtocol}//${targetHost}:3001`
         }
         
         fetch(`${getApiBaseUrl()}/api/users?name=${encodeURIComponent(storedUser.name)}`)
