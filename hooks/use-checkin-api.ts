@@ -11,8 +11,8 @@ const getApiBaseUrl = () => {
   }
 
   if (typeof window === 'undefined') {
-    // Server-side rendering fallback
-    return 'http://localhost:3001'
+    // Server-side rendering fallback - use environment variable or default
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
   }
 
   // Client-side: Automatische URL-Erkennung
@@ -31,7 +31,7 @@ const getApiBaseUrl = () => {
   
   if (isRealDevelopment) {
     console.log('🔍 Real development mode detected (localhost:3000)')
-    return 'http://localhost:3001'
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
   }
   
   // For Docker or server deployment: Use server's IP with port 3001
