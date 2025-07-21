@@ -24,13 +24,25 @@ RUN npm ci --legacy-peer-deps
 FROM base AS frontend-builder
 WORKDIR /app
 
+# Build-time arguments for Next.js public environment variables
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ARG NEXT_PUBLIC_LOGIN_USERNAME
+ARG NEXT_PUBLIC_LOGIN_PASSWORD
+
+# Set build-time environment variables
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_LOGIN_USERNAME=$NEXT_PUBLIC_LOGIN_USERNAME
+ENV NEXT_PUBLIC_LOGIN_PASSWORD=$NEXT_PUBLIC_LOGIN_PASSWORD
+
 # Copy frontend dependencies
 COPY --from=frontend-deps /app/node_modules ./node_modules
 
 # Copy frontend source code
 COPY . .
 
-# Build the frontend with environment validation skipped
+# Build the frontend with environment validation skipped but variables available
 ENV SKIP_ENV_VALIDATION=true
 RUN npm run build
 
@@ -73,6 +85,16 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Runtime environment variables (these can be overridden at runtime)
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ARG NEXT_PUBLIC_LOGIN_USERNAME
+ARG NEXT_PUBLIC_LOGIN_PASSWORD
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_LOGIN_USERNAME=$NEXT_PUBLIC_LOGIN_USERNAME
+ENV NEXT_PUBLIC_LOGIN_PASSWORD=$NEXT_PUBLIC_LOGIN_PASSWORD
 
 # Note: No Prisma engine binaries needed with queryCompiler preview feature
 
