@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Clock, Users, Coffee, Briefcase, Dumbbell, Book, ShoppingBag, CheckCircle, MapPin, Heart, LogOut, AlertCircle, AlertTriangle, RefreshCw, Menu, X, Search, User as UserIcon, Lock } from "lucide-react"
 import { useLocations, useCreateUser, useCheckIn, useAutoLogin, useLoginWithName, useLogout, useWebsocketStatus, userStorage, type Location, type User } from "@/hooks/use-checkin-api"
 import { ConnectionStatus } from "@/components/ui/connection-status"
@@ -38,7 +39,6 @@ export default function CheckInApp() {
   const [checkInTime, setCheckInTime] = useState<Date | null>(null)
   const [showExistingUserOption, setShowExistingUserOption] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [showSearchResults, setShowSearchResults] = useState(false)
 
@@ -157,22 +157,10 @@ export default function CheckInApp() {
           
           const currentHost = window.location.hostname
           const currentProtocol = window.location.protocol
-          const currentPort = window.location.port
           
-          // Check if we're in real development mode
-          const isRealDevelopment = currentHost === 'localhost' && currentPort === '3000'
-          
-          if (isRealDevelopment) {
-            return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-          }
-          
-          // For Docker/server deployment
-          let targetHost = currentHost
-          if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-            targetHost = '172.16.3.6' // Your server IP
-          }
-          
-          return `${currentProtocol}//${targetHost}:3001`
+          // For Docker deployment: Use localhost with port 3001 (mapped to host)
+          // This works because Docker Compose maps the backend port to localhost:3001
+          return `${currentProtocol}//${currentHost}:3001`
         }
         
         fetch(`${getApiBaseUrl()}/api/users?name=${encodeURIComponent(storedUser.name)}`)
@@ -607,16 +595,70 @@ export default function CheckInApp() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <ConnectionStatus isConnected={isConnected} error={wsError} />
-                {!showMobileMenu && (
-                  <Button
-                    onClick={() => setShowMobileMenu(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white/70 backdrop-blur-sm border-white/20 hover:bg-white/90"
-                  >
-                    <Menu className="w-4 h-4" />
-                  </Button>
-                )}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/70 backdrop-blur-sm border-white/20 hover:bg-white/90"
+                    >
+                      <Menu className="w-4 h-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="max-h-[70vh]">
+                    <SheetHeader>
+                      <SheetTitle>Menü</SheetTitle>
+                    </SheetHeader>
+                    <div className="space-y-3 mt-6">
+                      <NotificationCenter 
+                        currentUserId={user?.id}
+                        className="w-full" 
+                      />
+                      {user && (
+                        <RequestHelpEnhancedDialog 
+                          user={user}
+                          currentLocation={currentLocation}
+                          availableUsers={availableUsers}
+                          trigger={
+                            <Button
+                              variant="destructive"
+                              size="lg"
+                              className="w-full justify-start h-12 text-base min-h-[48px] touch-manipulation"
+                              disabled={!currentLocation}
+                            >
+                              <AlertTriangle className="w-5 h-5 mr-3" />
+                              Hilfe rufen
+                              {!currentLocation && (
+                                <span className="ml-auto text-xs opacity-75">
+                                  (Check-in erforderlich)
+                                </span>
+                              )}
+                            </Button>
+                          }
+                        />
+                      )}
+                      <Button
+                        onClick={handleRefresh}
+                        variant="outline"
+                        size="lg"
+                        className="w-full justify-start h-12 text-base"
+                        disabled={isRefreshing}
+                      >
+                        <RefreshCw className={`w-5 h-5 mr-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
+                      </Button>
+                      <Button
+                        onClick={handleAdminLogout}
+                        variant="outline"
+                        size="lg"
+                        className="w-full justify-start h-12 text-base border-red-200 text-red-600 hover:bg-red-50"
+                      >
+                        <LogOut className="w-5 h-5 mr-3" />
+                        Abmelden
+                      </Button>
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
               
               {checkedInLocation && checkInTime && (
@@ -625,65 +667,6 @@ export default function CheckInApp() {
                   <Clock className="w-4 h-4" />
                   Eingecheckt seit {formatTime(checkInTime)}
                 </Badge>
-              )}
-              
-              {/* Mobile Menu */}
-              {showMobileMenu && (
-                <div className="bg-white/90 backdrop-blur-lg rounded-xl p-4 border border-white/20 shadow-xl">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-slate-800">Menü</h3>
-                    <Button
-                      onClick={() => setShowMobileMenu(false)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <NotificationCenter 
-                      currentUserId={user?.id}
-                      className="w-full" 
-                    />
-                    {user && (
-                      <RequestHelpEnhancedDialog 
-                        user={user}
-                        currentLocation={currentLocation}
-                        availableUsers={availableUsers}
-                        trigger={
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="w-full justify-start"
-                            disabled={!checkedInLocation}
-                          >
-                            <AlertTriangle className="w-4 h-4 mr-2" />
-                            Hilfe rufen
-                          </Button>
-                        }
-                      />
-                    )}
-                    <Button
-                      onClick={handleRefresh}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                      disabled={isRefreshing}
-                    >
-                      <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                      {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
-                    </Button>
-                    <Button
-                      onClick={handleAdminLogout}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Abmelden
-                    </Button>
-                  </div>
-                </div>
               )}
             </div>
           ) : (
@@ -705,6 +688,22 @@ export default function CheckInApp() {
                   user={user}
                   currentLocation={currentLocation}
                   availableUsers={availableUsers}
+                  trigger={
+                    <Button
+                      variant="destructive"
+                      size="lg"
+                      className="w-full justify-start h-12 text-base min-h-[48px] touch-manipulation"
+                      disabled={!currentLocation}
+                    >
+                      <AlertTriangle className="w-5 h-5 mr-3" />
+                      Hilfe rufen
+                      {!currentLocation && (
+                        <span className="ml-auto text-xs opacity-75">
+                          (Check-in erforderlich)
+                        </span>
+                      )}
+                    </Button>
+                  }
                 />
               )}
               <Button
@@ -910,54 +909,52 @@ export default function CheckInApp() {
           {user && (
             <CreateTemporaryLocationDialog 
               user={user}
-            trigger={
-              <Card className={`cursor-pointer transition-all duration-300 ${isMobile ? 'transform active:scale-95' : 'transform hover:scale-105'} backdrop-blur-lg bg-white/80 border-white/20 shadow-xl ${isMobile ? 'active:shadow-2xl' : 'hover:shadow-2xl'} group`}>
-                <CardContent className={isMobile ? "p-4" : "p-3"}>
-                  <div className={`flex items-start justify-between ${isMobile ? 'mb-3' : 'mb-2'}`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`${isMobile ? 'p-3' : 'p-2'} rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-lg transform transition-transform duration-300 ${isMobile ? 'group-active:scale-95' : 'group-hover:scale-110'}`}>
-                        <MapPin className={isMobile ? "w-6 h-6" : "w-4 h-4"} />
-                      </div>
-                      <Badge variant="outline" className="text-xs bg-slate-100 text-slate-600 border-slate-200 px-1.5 py-0.5">
-                        Neu erstellen
-                      </Badge>
-                    </div>
-                    <div className={`flex items-center gap-1 bg-white/70 backdrop-blur-sm rounded-full ${isMobile ? 'px-3 py-1' : 'px-2 py-0.5'} shadow-md`}>
-                      <MapPin className={isMobile ? "w-4 h-4 text-slate-400" : "w-3 h-3 text-slate-400"} />
-                      <span className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium text-slate-500`}>+</span>
-                    </div>
-                  </div>
-
-                  <h3 className={`font-bold ${isMobile ? 'text-lg' : 'text-base'} text-slate-800 ${isMobile ? 'mb-2' : 'mb-1'} leading-tight`}>
-                    Temporäre Karte erstellen
-                  </h3>
-                  <p className={`text-slate-600 ${isMobile ? 'text-sm mb-3' : 'text-xs mb-2'} leading-snug line-clamp-2`}>
-                    Neue temporäre Check-in-Karte für spontane Meetings oder Events
-                  </p>
-
-                  {/* Placeholder "users" section */}
-                  <div className={`${isMobile ? 'mt-3 pt-3' : 'mt-2 pt-2'} border-t border-white/30`}>
-                    <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-slate-400 ${isMobile ? 'mb-2' : 'mb-1'} font-medium`}>Klicken zum Erstellen</p>
-                    <div className="flex items-center gap-2">
-                      <div className="flex -space-x-1">
-                        <div className="w-6 h-6 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full border-2 border-white flex items-center justify-center">
-                          <MapPin className="w-3 h-3 text-slate-500" />
+              trigger={
+                <Card className={`cursor-pointer transition-all duration-300 ${isMobile ? 'transform active:scale-95' : 'transform hover:scale-105'} backdrop-blur-lg bg-white/80 border-white/20 shadow-xl ${isMobile ? 'active:shadow-2xl' : 'hover:shadow-2xl'} group`}>
+                  <CardContent className={isMobile ? "p-4" : "p-3"}>
+                    <div className={`flex items-start justify-between ${isMobile ? 'mb-3' : 'mb-2'}`}>
+                      <div className="flex items-center gap-2">
+                        <div className={`${isMobile ? 'p-3' : 'p-2'} rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-lg transform transition-transform duration-300 ${isMobile ? 'group-active:scale-95' : 'group-hover:scale-110'}`}>
+                          <MapPin className={isMobile ? "w-6 h-6" : "w-4 h-4"} />
                         </div>
-                        <div className="w-6 h-6 bg-gradient-to-br from-orange-200 to-orange-300 rounded-full border-2 border-white flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-orange-600 rounded-full"></div>
-                        </div>
+                        <Badge variant="outline" className="text-xs bg-slate-100 text-slate-600 border-slate-200 px-1.5 py-0.5">
+                          Neu erstellen
+                        </Badge>
                       </div>
-                      <span className="text-xs text-slate-400">Temporäre Karte</span>
+                      <div className={`flex items-center gap-1 bg-white/70 backdrop-blur-sm rounded-full ${isMobile ? 'px-3 py-1' : 'px-2 py-0.5'} shadow-md`}>
+                        <MapPin className={isMobile ? "w-4 h-4 text-slate-400" : "w-3 h-3 text-slate-400"} />
+                        <span className={`${isMobile ? 'text-sm' : 'text-xs'} font-medium text-slate-500`}>+</span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            }
-          />
+
+                    <h3 className={`font-bold ${isMobile ? 'text-lg' : 'text-base'} text-slate-800 ${isMobile ? 'mb-2' : 'mb-1'} leading-tight`}>
+                      Temporäre Karte erstellen
+                    </h3>
+                    <p className={`text-slate-600 ${isMobile ? 'text-sm mb-3' : 'text-xs mb-2'} leading-snug line-clamp-2`}>
+                      Neue temporäre Check-in-Karte für spontane Meetings oder Events
+                    </p>
+
+                    {/* Placeholder "users" section */}
+                    <div className={`${isMobile ? 'mt-3 pt-3' : 'mt-2 pt-2'} border-t border-white/30`}>
+                      <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-slate-400 ${isMobile ? 'mb-2' : 'mb-1'} font-medium`}>Klicken zum Erstellen</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-1">
+                          <div className="w-6 h-6 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full border-2 border-white flex items-center justify-center">
+                            <MapPin className="w-3 h-3 text-slate-500" />
+                          </div>
+                          <div className="w-6 h-6 bg-gradient-to-br from-orange-200 to-orange-300 rounded-full border-2 border-white flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-orange-600 rounded-full"></div>
+                          </div>
+                        </div>
+                        <span className="text-xs text-slate-400">Temporäre Karte</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              }
+            />
           )}
         </div>
-
-
       </div>
     </div>
   )

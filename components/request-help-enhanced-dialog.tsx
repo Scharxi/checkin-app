@@ -114,11 +114,11 @@ export const RequestHelpEnhancedDialog = ({
         {trigger || (
           <Button
             variant="destructive"
-            size={isMobile ? "lg" : "default"}
-            className="w-full sm:w-auto"
+            size="lg"  // Always use large size for better touch targets
+            className="w-full sm:w-auto min-h-[44px] px-4"  // Ensure minimum touch target size
             disabled={isDisabled}
           >
-            <AlertTriangle className="mr-2 h-4 w-4" />
+            <AlertTriangle className="mr-2 h-5 w-5" />
             Hilfe rufen
           </Button>
         )}

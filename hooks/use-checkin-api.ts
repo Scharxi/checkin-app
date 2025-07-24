@@ -26,33 +26,11 @@ const getApiBaseUrl = () => {
   console.log('  - Port:', currentPort)
   console.log('  - Full URL:', window.location.href)
   
-  // Check if we're in a real development environment (not Docker)
-  const isRealDevelopment = currentHost === 'localhost' && currentPort === '3000'
-  
-  if (isRealDevelopment) {
-    console.log('🔍 Real development mode detected (localhost:3000)')
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-  }
-  
-  // For Docker or server deployment: Use server's IP with port 3001
-  // This handles cases where frontend runs on localhost:3000 but in Docker
-  let targetHost = currentHost
-  
-  // If we're on localhost but not in real development, we're likely in Docker
-  // Use the actual server IP instead
-  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-    // Try to determine server IP - fallback to current method
-    console.log('🔍 Docker/Server mode detected - using server IP for backend')
-    // For Docker deployment, backend service name or server IP should be used
-    // Since we can't dynamically detect this easily, we'll use a hardcoded fallback
-    // that can be overridden by environment variable
-    targetHost = '172.16.3.6' // Your server IP - should be set via env var
-  }
-  
-  const apiUrl = `${currentProtocol}//${targetHost}:3001`
+  // For Docker deployment: Use localhost with port 3001 (mapped to host)
+  // This works because Docker Compose maps the backend port to localhost:3001
+  const apiUrl = `${currentProtocol}//${currentHost}:3001`
   
   console.log('🔍 Final API Base URL:', apiUrl)
-  console.log('🔍 Target Host:', targetHost)
   
   return apiUrl
 }

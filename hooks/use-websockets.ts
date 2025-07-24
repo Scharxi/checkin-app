@@ -116,27 +116,11 @@ const getWebSocketUrl = () => {
   console.log('  - Port:', currentPort)
   console.log('  - Full URL:', window.location.href)
   
-  // Check if we're in a real development environment (not Docker)
-  const isRealDevelopment = currentHost === 'localhost' && currentPort === '3000'
-  
-  if (isRealDevelopment) {
-    console.log('🔌 Real development mode detected (localhost:3000)')
-    return process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
-  }
-  
-  // For Docker or server deployment: Use current host with port 3001
-  let targetHost = currentHost
-  
-  // If we're on localhost but not in real development, we might be in Docker
-  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-    console.log('🔌 Docker/Server mode detected - using server IP for backend')
-    targetHost = '172.16.3.6' // Your server IP - should be set via env var
-  }
-  
-  const websocketUrl = `${currentProtocol}//${targetHost}:3001`
+  // For Docker deployment: Use localhost with port 3001 (mapped to host)
+  // This works because Docker Compose maps the backend port to localhost:3001
+  const websocketUrl = `${currentProtocol}//${currentHost}:3001`
   
   console.log('🔌 Final WebSocket URL:', websocketUrl)
-  console.log('🔌 Target Host:', targetHost)
   
   return websocketUrl
 }
@@ -167,12 +151,6 @@ export const useWebsockets = () => {
       // Additional options for better cross-origin support
       forceNew: false,
       upgrade: true,
-      // Add explicit headers for CORS
-      extraHeaders: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
-      },
     })
 
     socketRef.current = socket

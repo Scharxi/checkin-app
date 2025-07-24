@@ -129,4 +129,4 @@ EXPOSE 3000
 EXPOSE 3001
 
 # Start both services - backend handles all database operations
-CMD sh -c "cd /app/backend && npx prisma db push --schema=./prisma/schema.prisma && node dist/server.js & cd /app && node server.js" 
+CMD sh -c "cd /app/backend && npx prisma db push --schema=./prisma/schema.prisma && PORT=3001 node dist/server.js & cd /app && PORT=3000 node server.js" 
